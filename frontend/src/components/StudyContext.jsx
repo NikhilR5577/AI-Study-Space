@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import api from "../services/api"; // 👈 FIXED: Importing your Axios instance
 
 const StudyContext = createContext();
 
@@ -25,10 +26,7 @@ export function StudyProvider({ children, userEmail }) {
   // ===========================
   const [provider, setProvider] = useState("mistral");
   const [model, setModel] = useState("mistral-small");
-  
-  // 👈 THE FIX: Added setSessionId so we can generate a new one
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
-  
   const [userId, setUserId] = useState(() => loadFromStorage("user_email", null));
   const [isDataLoaded, setIsDataLoaded] = useState(false); 
 
@@ -77,30 +75,22 @@ export function StudyProvider({ children, userEmail }) {
     setIsDataLoaded(false); 
     
     try {
-      // 1. Fetch Chat
-      const chatRes = await fetch(`http://localhost:8000/api/chat/history/${cleanEmail}`);
-      if (chatRes.ok) {
-        const chatData = await chatRes.json();
-        if (chatData.history) setChatHistory(chatData.history);
-      }
+      // 1. Fetch Chat 👈 FIXED: Using api instance
+      const chatRes = await api.get(`/api/chat/history/${cleanEmail}`);
+      if (chatRes.data && chatRes.data.history) setChatHistory(chatRes.data.history);
 
-      // 2. Fetch Graph
-      const graphRes = await fetch(`http://localhost:8000/api/graph/${cleanEmail}`);
-      if (graphRes.ok) {
-        const data = await graphRes.json();
-        if (data.nodes) setGraphData({ nodes: data.nodes, links: data.links });
-      }
+      // 2. Fetch Graph 👈 FIXED: Using api instance
+      const graphRes = await api.get(`/api/graph/${cleanEmail}`);
+      if (graphRes.data && graphRes.data.nodes) setGraphData({ nodes: graphRes.data.nodes, links: graphRes.data.links });
 
-      // 3. Fetch Analytics
-      const analyticsRes = await fetch(`http://localhost:8000/api/analytics/${cleanEmail}`);
-      if (analyticsRes.ok) {
-        const analytics = await analyticsRes.json();
-        if (analytics) {
-          if (analytics.studyData) setStudyData(analytics.studyData);
-          if (analytics.studyHistory) setStudyHistory(analytics.studyHistory);
-          if (analytics.currentStreak !== undefined) setCurrentStreak(analytics.currentStreak);
-          if (analytics.sessionsCompleted !== undefined) setSessionsCompleted(analytics.sessionsCompleted);
-        }
+      // 3. Fetch Analytics 👈 FIXED: Using api instance
+      const analyticsRes = await api.get(`/api/analytics/${cleanEmail}`);
+      if (analyticsRes.data) {
+        const analytics = analyticsRes.data;
+        if (analytics.studyData) setStudyData(analytics.studyData);
+        if (analytics.studyHistory) setStudyHistory(analytics.studyHistory);
+        if (analytics.currentStreak !== undefined) setCurrentStreak(analytics.currentStreak);
+        if (analytics.sessionsCompleted !== undefined) setSessionsCompleted(analytics.sessionsCompleted);
       }
     } catch (err) {
       console.error("Hydration failed:", err);
@@ -120,11 +110,9 @@ export function StudyProvider({ children, userEmail }) {
   // ===========================
   // MODIFIED FUNCTIONS
   // ===========================
-
-  // 👈 THE FIX: New Chat Logic
   const startNewChat = () => {
-    setSessionId(crypto.randomUUID()); // Gives the backend a fresh slate
-    setChatHistory([]); // Clears the UI
+    setSessionId(crypto.randomUUID());
+    setChatHistory([]);
     setCurrentTopic("");
     setActiveSources([]);
   };
@@ -236,7 +224,7 @@ export function StudyProvider({ children, userEmail }) {
   };
 
   // ===========================
-  // AUTO-SAVE
+  // AUTO-SAVE 👈 FIXED: Using api instance for POSTs
   // ===========================
   useEffect(() => {
     localStorage.setItem("user_email", JSON.stringify(userId));
@@ -252,17 +240,8 @@ export function StudyProvider({ children, userEmail }) {
     const cleanUserId = getCleanUserId(userId);
 
     if (cleanUserId !== "guest" && isDataLoaded) {
-      fetch(`http://localhost:8000/api/graph/${cleanUserId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(graphData)
-      }).catch(console.error);
-
-      fetch(`http://localhost:8000/api/analytics/${cleanUserId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studyData, studyHistory, currentStreak, sessionsCompleted })
-      }).catch(console.error);
+      api.post(`/api/graph/${cleanUserId}`, graphData).catch(console.error);
+      api.post(`/api/analytics/${cleanUserId}`, { studyData, studyHistory, currentStreak, sessionsCompleted }).catch(console.error);
     }
   }, [userId, chatHistory, currentTopic, activeSources, graphData, studyData, studyHistory, currentStreak, sessionsCompleted, isDataLoaded]);
 
@@ -333,7 +312,7 @@ export function StudyProvider({ children, userEmail }) {
         studyData, studyHistory, currentStreak, sessionsCompleted,
         addStudySession,
         clearSessionData,
-        startNewChat // 👈 THE FIX: Exported the function to the rest of the app
+        startNewChat
       }}
     >
       {children}
