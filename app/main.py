@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv, find_dotenv
 
-# 👈 THE FIX: Import the missing analytics and graph_routes modules
+# Import the missing analytics and graph_routes modules
 from app.routes import health, upload, chat, analytics, graph_routes
 
 # This will find the .env file even if it's in a parent directory
@@ -47,9 +47,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AI Study Space Backend", lifespan=lifespan)
 
 # Add CORS Middleware
+# Expanded origins to support common local development ports (Vite/CRA)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,6 +60,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(upload.router)
 app.include_router(chat.router)
-# 👈 THE FIX: Tell FastAPI that these routes actually exist!
+# Tell FastAPI that these routes actually exist!
 app.include_router(analytics.router)
 app.include_router(graph_routes.router)
