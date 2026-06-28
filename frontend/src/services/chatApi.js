@@ -1,14 +1,14 @@
 // src/services/chatApi.js
+import api from './api'; // 👈 FIXED: Importing your central API config
 
-// Change this if your FastAPI backend is running on a different port
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// 👈 FIXED: Automatically uses the production URL from api.js
+const API_URL = api.defaults.baseURL;
 
 /**
  * Sends a message to the backend and reads the JSON-Lines streamed response.
  */
 export const sendChatMessageStream = async (message, provider, model, sessionId, userId, onChunk, onMetadata) => {
     try {
-        // 👈 THE TRIPWIRES: Check your Chrome Console (F12) to see exactly what is being sent!
         console.log("DEBUG API: The raw userId passed to sendChatMessageStream is:", userId);
 
         const payload = { 
@@ -21,6 +21,7 @@ export const sendChatMessageStream = async (message, provider, model, sessionId,
 
         console.log("DEBUG API: The final JSON payload going to FastAPI:", payload);
 
+        // Note: Using fetch here because streaming is more stable with it
         const response = await fetch(`${API_URL}/chat/stream`, {
             method: 'POST',
             headers: {
@@ -79,10 +80,10 @@ export const sendChatMessageStream = async (message, provider, model, sessionId,
 
 /**
  * Asks the backend to extract entities for the Knowledge Graph.
- * (Legacy fallback - mostly handled by the stream now)
  */
 export const extractKnowledgeGraph = async (text, provider, model) => {
     try {
+        // 👈 FIXED: Using the shared API_URL
         const response = await fetch(`${API_URL}/api/graph/extract`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
