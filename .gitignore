@@ -1,0 +1,19 @@
+# Sensitive secrets
+**/app/.env
+**/frontend/.env
+
+# Node/React junk (THIS IS WHAT WAS MISSING)
+**/node_modules/
+**/dist/
+
+# Python junk
+__pycache__/
+*.pyc
+venv/
+
+# Database and file storage
+chroma_db/
+uploaded_files/
+
+# OS/System files
+.DS_Store
