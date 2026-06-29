@@ -5,6 +5,12 @@ import { sendChatMessageStream } from '../services/chatApi';
 import { uploadFile, processFile, processUrl, transcribeAudio } from '../services/uploadApi';
 import { useStudy } from "../components/StudyContext";
 
+// 💡 Added Math formatting imports
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css'; 
+
 export default function ChatPage() {
   
   const {
@@ -127,20 +133,17 @@ export default function ChatPage() {
     if (!inputMessage.trim() || isLoading) return;
 
     // 👈 THE FIX: Sanitize the user ID perfectly.
-    // Google OAuth sometimes stores the user as an object, or localStorage wraps strings in extra quotes. 
-    // This ensures the backend gets a pure string email, preventing silent database save/fetch failures.
     let resolvedUserId = "guest";
     if (userId) {
       if (typeof userId === 'string') {
-        resolvedUserId = userId.replace(/^"|"$/g, ''); // Strip extra quotes if any
+        resolvedUserId = userId.replace(/^"|"$/g, ''); 
       } else if (userId.email) {
-        resolvedUserId = userId.email; // Extract email if it's an object
+        resolvedUserId = userId.email; 
       } else {
         resolvedUserId = String(userId);
       }
     }
 
-    // DEBUG: Verify exactly what pure string is being sent
     console.log("DEBUG: Sending message with cleaned user_id:", resolvedUserId);
 
     const userMessage = inputMessage.trim();
@@ -196,7 +199,7 @@ export default function ChatPage() {
         provider, 
         model, 
         sessionId,
-        resolvedUserId, // 👈 Passing the sanitized string here instead of (userId || "guest")
+        resolvedUserId, 
         
         (chunkText) => {
           setIsLoading(false); 
@@ -258,8 +261,11 @@ export default function ChatPage() {
               <div className={`p-2 rounded-lg shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-indigo-400'}`}>
                 {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
               </div>
+              {/* 👈 FIXED: Render math content correctly using ReactMarkdown, remarkMath, and rehypeKatex */}
               <div className="text-sm md:text-base leading-relaxed tracking-wide whitespace-pre-wrap">
-                {msg.content}
+                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                  {msg.content}
+                </ReactMarkdown>
               </div>
             </div>
           ))
