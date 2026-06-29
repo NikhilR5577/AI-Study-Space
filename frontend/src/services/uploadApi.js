@@ -1,45 +1,39 @@
+import api from './api'; // 👈 FIXED: Importing your central API config
+
 export const uploadFile = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await fetch('http://localhost:8000/upload', {
-    method: 'POST',
-    body: formData,
+  // 👈 FIXED: Using api instance
+  const response = await api.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
   
-  if (!response.ok) throw new Error('Failed to upload file');
-  return response.json();
+  return response.data;
 };
 
 export const processFile = async (filename) => {
-  const response = await fetch(`http://localhost:8000/process/file/${filename}`, {
-    method: 'POST',
-  });
+  // 👈 FIXED: Using api instance
+  const response = await api.post(`/process/file/${filename}`);
   
-  if (!response.ok) throw new Error('Failed to process file');
-  return response.json();
+  return response.data;
 };
 
 export const processUrl = async (url) => {
-  const response = await fetch('http://localhost:8000/process/url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: url }) 
-  });
+  // 👈 FIXED: Using api instance
+  const response = await api.post('/process/url', { url: url });
   
-  if (!response.ok) throw new Error('Failed to process URL');
-  return response.json();
+  return response.data;
 };
 
 export const transcribeAudio = async (audioBlob) => {
   const formData = new FormData();
   formData.append('file', audioBlob, 'audio.wav');
   
-  const response = await fetch('http://localhost:8000/voice/transcribe', {
-    method: 'POST',
-    body: formData,
+  // 👈 FIXED: Using api instance
+  const response = await api.post('/voice/transcribe', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
   
-  if (!response.ok) throw new Error('Audio transcription failed');
-  return response.json();
+  return response.data;
 };
