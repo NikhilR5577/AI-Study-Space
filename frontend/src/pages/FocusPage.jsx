@@ -1,5 +1,5 @@
-import React from 'react';
-import { Play, Pause, RotateCcw, BookOpen, Link, FileText, UploadCloud } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Play, Pause, RotateCcw, BookOpen, Link, FileText, UploadCloud, CheckCircle } from 'lucide-react';
 import { useStudy } from '../components/StudyContext'; 
 
 export default function FocusPage() {
@@ -12,6 +12,24 @@ export default function FocusPage() {
     activeSources
   } = useStudy();
 
+  // FIX 1: Local state to control the visibility of the success message
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // FIX 2: Watch the timer. When it hits 0, show success message and reset after 4 seconds.
+  useEffect(() => {
+    if (timeLeft === 0 && isRunning) {
+      setIsRunning(false);
+      setShowSuccess(true);
+
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+        changeTimerMode(timerConfig / 60); 
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [timeLeft, isRunning, setIsRunning, changeTimerMode, timerConfig]);
+
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
@@ -20,6 +38,7 @@ export default function FocusPage() {
 
   const handleReset = () => {
     setIsRunning(false);
+    setShowSuccess(false); // Clear success message if user manually resets
     changeTimerMode(timerConfig / 60); 
   };
 
@@ -63,7 +82,7 @@ export default function FocusPage() {
       </div>
       
       {/* Timer Display */}
-      <div className="bg-[#111111] p-12 rounded-3xl border border-gray-800/60 flex flex-col items-center shadow-2xl">
+      <div className="bg-[#111111] p-12 rounded-3xl border border-gray-800/60 flex flex-col items-center shadow-2xl relative">
         <div className="text-8xl md:text-9xl font-black font-mono text-white mb-10 tracking-tight">
           {formatTime(timeLeft)}
         </div>
@@ -85,6 +104,14 @@ export default function FocusPage() {
             <RotateCcw className="w-8 h-8" />
           </button>
         </div>
+
+        {/* FIX 3: Success Message UI - appears smoothly when timer hits 0 */}
+        {showSuccess && (
+          <div className="absolute bottom-6 flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-4 py-2 rounded-full animate-in slide-in-from-bottom-2 fade-in duration-300">
+            <CheckCircle className="w-5 h-5" />
+            <span className="font-medium">Session Complete! Great focus.</span>
+          </div>
+        )}
       </div>
 
       {/* Active Study Sources (DYNAMIC) */}
@@ -99,7 +126,6 @@ export default function FocusPage() {
             </div>
           ) : (
             activeSources.map((source, index) => {
-              // 👈 THE FIX: Intercept the data and dynamically verify if it is a URL
               const sourceName = typeof source === 'string' ? source : source.name;
               const isUrl = sourceName.startsWith('http://') || sourceName.startsWith('https://');
               const sourceType = isUrl ? 'url' : (typeof source === 'string' ? 'pdf' : source.type);
@@ -110,7 +136,6 @@ export default function FocusPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 font-mono mb-1 uppercase">{sourceType}:</p>
                     
-                    {/* Render clickable link for URLs, standard box for files */}
                     {isUrl ? (
                       <a 
                         href={sourceName} 

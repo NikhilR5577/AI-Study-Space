@@ -53,7 +53,7 @@ export default function App() {
     <GoogleOAuthProvider clientId={clientId}>
       {!user && !isGuest ? (
         // Gateway Screen
-        <div className="flex h-screen bg-gray-950 items-center justify-center font-sans px-4">
+        <div className="flex h-[100dvh] bg-gray-950 items-center justify-center font-sans px-4">
           <div className="bg-gray-900 p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full text-center space-y-6">
             <BookOpen className="w-16 h-16 text-indigo-500 mx-auto" />
             <h1 className="text-3xl font-bold text-gray-100 tracking-tight">AI Study Space</h1>
@@ -77,16 +77,20 @@ export default function App() {
         // Main App Layout
         <StudyProvider userEmail={user ? user.email : (isGuest ? 'guest' : null)}> 
           <Router>
-            <div className="flex h-screen bg-gray-950 font-sans overflow-hidden relative">
+            {/* Added h-[100dvh] and w-full to lock the main boundary to the screen */}
+            <div className="flex h-[100dvh] w-full bg-gray-950 font-sans overflow-hidden relative">
               {isSidebarOpen && (
                 <div className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity" onClick={() => setIsSidebarOpen(false)} />
               )}
               <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} user={user} handleLogout={handleLogout} handleLoginSuccess={handleLoginSuccess} />
-              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <header className="flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800 md:hidden z-10 shadow-md">
+              
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+                {/* Added flex-none to ensure the header is NEVER pushed off screen */}
+                <header className="flex-none flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800 md:hidden z-10 shadow-md">
                   <div className="text-xl font-bold text-indigo-400 flex items-center gap-2">📚 Study Space</div>
                   <button onClick={() => setIsSidebarOpen(true)} className="text-gray-400 hover:text-white p-2 bg-gray-800 rounded-lg transition-colors"><Menu className="w-5 h-5" /></button>
                 </header>
+                
                 <main className="flex-1 p-4 md:p-10 overflow-y-auto custom-scrollbar">
                   <Routes>
                     <Route path="/" element={<Navigate to="/chat" replace />} />

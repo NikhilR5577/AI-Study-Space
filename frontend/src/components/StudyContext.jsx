@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import api from "../services/api"; // 👈 FIXED: Importing your Axios instance
+import api from "../services/api";
 
 const StudyContext = createContext();
 
@@ -75,15 +75,12 @@ export function StudyProvider({ children, userEmail }) {
     setIsDataLoaded(false); 
     
     try {
-      // 1. Fetch Chat 👈 FIXED: Using api instance
       const chatRes = await api.get(`/api/chat/history/${cleanEmail}`);
       if (chatRes.data && chatRes.data.history) setChatHistory(chatRes.data.history);
 
-      // 2. Fetch Graph 👈 FIXED: Using api instance
       const graphRes = await api.get(`/api/graph/${cleanEmail}`);
       if (graphRes.data && graphRes.data.nodes) setGraphData({ nodes: graphRes.data.nodes, links: graphRes.data.links });
 
-      // 3. Fetch Analytics 👈 FIXED: Using api instance
       const analyticsRes = await api.get(`/api/analytics/${cleanEmail}`);
       if (analyticsRes.data) {
         const analytics = analyticsRes.data;
@@ -173,6 +170,28 @@ export function StudyProvider({ children, userEmail }) {
           updatedLinks.push(incomingLink);
         }
       });
+
+      // FIX 1: Graph Continuity Enforcer
+      // Links the last old node to the first new node if follow-up question is asked
+      if (prevGraph.nodes.length > 0 && newNodes.length > 0) {
+        const lastOldNode = prevGraph.nodes[prevGraph.nodes.length - 1];
+        const firstNewNode = newNodes[0];
+
+        if (lastOldNode.id !== firstNewNode.id) {
+            const continuityLinkExists = updatedLinks.some(
+                l => (l.source === lastOldNode.id && l.target === firstNewNode.id) ||
+                     (l.source === firstNewNode.id && l.target === lastOldNode.id)
+            );
+            if (!continuityLinkExists) {
+                updatedLinks.push({
+                    source: lastOldNode.id,
+                    target: firstNewNode.id,
+                    name: "Follow-up Context"
+                });
+            }
+        }
+      }
+
       return { nodes: updatedNodes, links: updatedLinks };
     });
   };
@@ -224,7 +243,7 @@ export function StudyProvider({ children, userEmail }) {
   };
 
   // ===========================
-  // AUTO-SAVE 👈 FIXED: Using api instance for POSTs
+  // AUTO-SAVE
   // ===========================
   useEffect(() => {
     localStorage.setItem("user_email", JSON.stringify(userId));
@@ -246,7 +265,7 @@ export function StudyProvider({ children, userEmail }) {
   }, [userId, chatHistory, currentTopic, activeSources, graphData, studyData, studyHistory, currentStreak, sessionsCompleted, isDataLoaded]);
 
   // ===========================
-  // TIMER & NOTIFICATIONS (Untouched)
+  // TIMER & NOTIFICATIONS 
   // ===========================
   const [timerConfig, setTimerConfig] = useState(25 * 60);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -266,7 +285,10 @@ export function StudyProvider({ children, userEmail }) {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (isRunning && timeLeft === 0) {
+      // 1. Stop timer
       setIsRunning(false);
+      
+      // 2. Safely log all data
       const hoursStudied = timerConfig / 3600;
       const minutesStudied = timerConfig / 60;
       const currentDayIndex = new Date().getDay();
@@ -284,11 +306,17 @@ export function StudyProvider({ children, userEmail }) {
       
       setSessionsCompleted((prev) => prev + 1);
       if (sessionsCompleted === 0) setCurrentStreak((prev) => prev + 1);
-      setTimeLeft(timerConfig);
 
+      // 3. Send OS Notification
       if (Notification.permission === "granted") {
         new Notification("Deep Work Session Complete!", { body: "Great job! Your study session has been logged." });
       }
+
+      // FIX 2: Delayed reset. Gives the FocusPage exactly 4 seconds to show the 
+      // "Session Complete!" message before the timer rewinds.
+      setTimeout(() => {
+        setTimeLeft((current) => current === 0 ? timerConfig : current);
+      }, 4000);
     }
     return () => clearInterval(interval);
   }, [isRunning, timeLeft, timerConfig, currentTopic, sessionsCompleted]);

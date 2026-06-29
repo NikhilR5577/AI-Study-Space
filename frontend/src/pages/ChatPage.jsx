@@ -46,7 +46,6 @@ export default function ChatPage() {
     });
   }, [chatHistory]);
 
-  // 👈 THE FIX: Math formatter to safely convert AI brackets to Markdown dollar signs
   const formatMath = (text) => {
     if (!text) return "";
     return text
@@ -243,16 +242,17 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] max-w-5xl mx-auto text-gray-100">
+    // FIX 1: Changed h-[calc...] to h-full w-full min-w-0 to fit inside App.jsx dynamically
+    <div className="flex flex-col h-full w-full max-w-5xl mx-auto text-gray-100 min-w-0">
       
-      <div className="mb-4">
+      <div className="mb-4 shrink-0">
         <ModelSelector 
           selectedProvider={provider} setSelectedProvider={setProvider}
           selectedModel={model} setSelectedModel={setModel} 
         />
       </div>
 
-      <div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl p-6 overflow-y-auto space-y-4 mb-4 shadow-xl custom-scrollbar">
+      <div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 overflow-y-auto space-y-4 mb-4 shadow-xl custom-scrollbar min-w-0">
         
         {chatHistory.length === 0 ? (
            <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3 opacity-50">
@@ -263,15 +263,17 @@ export default function ChatPage() {
           chatHistory.map((msg) => (
             <div 
               key={msg.id} 
-              className={`flex items-start gap-4 p-4 rounded-xl max-w-[85%] transition-all ${
+              // Added max-w-[95%] for mobile so bubbles don't hit the absolute edges
+              className={`flex items-start gap-3 md:gap-4 p-4 rounded-xl max-w-[95%] md:max-w-[85%] transition-all ${
                 msg.role === 'user' ? 'bg-indigo-600/20 border border-indigo-500/30 ml-auto flex-row-reverse' : 'bg-gray-950 border border-gray-800/80 mr-auto'
               }`}
             >
               <div className={`p-2 rounded-lg shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-indigo-400'}`}>
                 {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
               </div>
-              <div className="text-sm md:text-base leading-relaxed tracking-wide whitespace-pre-wrap">
-                {/* 👈 FIXED: msg.content is wrapped in formatMath() before rendering */}
+              
+              {/* FIX 2: Added min-w-0 overflow-x-auto w-full. This creates a scrolling fence for long LaTeX equations. */}
+              <div className="text-sm md:text-base leading-relaxed tracking-wide whitespace-pre-wrap min-w-0 overflow-x-auto w-full custom-scrollbar">
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                   {formatMath(msg.content)}
                 </ReactMarkdown>
@@ -290,7 +292,8 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSendMessage} className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-3 shadow-lg">
+      {/* FIX 3: Added w-full and shrink-0 to prevent the form from getting squashed vertically */}
+      <form onSubmit={handleSendMessage} className="bg-gray-900 border border-gray-800 rounded-xl p-2 md:p-3 flex items-center gap-2 md:gap-3 shadow-lg w-full shrink-0">
         <input 
           type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden"
           accept=".pdf,.docx,.doc,.pptx,.png,.jpg,.jpeg"
@@ -298,7 +301,7 @@ export default function ChatPage() {
 
         <button 
           type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading || isLoading}
-          className={`p-2.5 rounded-lg transition-colors ${isUploading ? 'text-indigo-400 animate-pulse' : 'text-gray-400 hover:text-indigo-400 hover:bg-gray-950'}`}
+          className={`p-2 rounded-lg transition-colors shrink-0 ${isUploading ? 'text-indigo-400 animate-pulse' : 'text-gray-400 hover:text-indigo-400 hover:bg-gray-950'}`}
           title="Upload document or presentation"
         >
           <Paperclip className="w-5 h-5" />
@@ -308,7 +311,7 @@ export default function ChatPage() {
           type="button" 
           onClick={handleVoiceClick}
           disabled={isUploading}
-          className={`p-2.5 rounded-lg transition-colors ${
+          className={`p-2 rounded-lg transition-colors shrink-0 ${
             isRecording 
               ? 'bg-red-600/20 text-red-400 border border-red-500/30 animate-pulse' 
               : 'text-gray-400 hover:text-indigo-400 hover:bg-gray-950'
@@ -320,14 +323,15 @@ export default function ChatPage() {
 
         <input 
           type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
-          placeholder={isRecording ? "Listening closely..." : `Ask anything using ${model} or drop assets...`}
-          className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-4 py-2.5 text-sm md:text-base text-gray-100 focus:outline-none focus:border-indigo-500 transition-colors placeholder-gray-500"
+          placeholder={isRecording ? "Listening..." : `Ask anything using ${model}...`}
+          // FIX 4: Added min-w-0 so the input box allows itself to shrink on small screens without pushing buttons out of view
+          className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 md:px-4 md:py-2.5 text-sm md:text-base text-gray-100 focus:outline-none focus:border-indigo-500 transition-colors placeholder-gray-500"
           disabled={isLoading || isUploading || isRecording}
         />
 
         <button 
           type="submit" disabled={!inputMessage.trim() || isLoading || isUploading || isRecording}
-          className={`p-2.5 rounded-lg transition-all ${inputMessage.trim() && !isLoading && !isUploading ? 'bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+          className={`p-2 rounded-lg transition-all shrink-0 ${inputMessage.trim() && !isLoading && !isUploading ? 'bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
         >
           <Send className="w-5 h-5" />
         </button>
