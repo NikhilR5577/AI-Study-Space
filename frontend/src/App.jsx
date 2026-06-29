@@ -57,7 +57,7 @@ export default function App() {
   // --- GATEWAY SCREEN ---
   if (!user && !isGuest) {
     return (
-      <GoogleOAuthProvider clientId={clientId}>
+      <GoogleOAuthProvider clientId="570543164189-e7g3mvf73dkbh179p9j2i56bvhj49qv2.apps.googleusercontent.com">
         <div className="flex h-screen bg-gray-950 items-center justify-center font-sans px-4">
           <div className="bg-gray-900 p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full text-center space-y-6">
             <BookOpen className="w-16 h-16 text-indigo-500 mx-auto" />
