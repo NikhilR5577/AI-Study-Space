@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import app from './app.jsx'
+import App from './App.jsx'
 import './index.css' // This loads your Tailwind styling
 
 ReactDOM.createRoot(document.getElementById('root')).render(
