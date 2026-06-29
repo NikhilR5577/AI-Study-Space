@@ -18,13 +18,17 @@ export default function App() {
   const [isGuest, setIsGuest] = useState(() => localStorage.getItem('isGuest') === 'true');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // DEBUG: Check if ID exists
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    console.error("CRITICAL: VITE_GOOGLE_CLIENT_ID is undefined. Check Vercel Environment Variables.");
+  }
+
   const handleLoginSuccess = (credentialResponse) => {
     const decoded = jwtDecode(credentialResponse.credential);
     setUser(decoded);
     setIsGuest(false);
     
-    // 👈 THE FIX: The Handshake. 
-    // We must tell StudyContext the email before it mounts!
     localStorage.setItem('user', JSON.stringify(decoded));
     localStorage.setItem('user_email', JSON.stringify(decoded.email)); 
     localStorage.removeItem('isGuest');
@@ -35,22 +39,14 @@ export default function App() {
     setUser(null);
     localStorage.setItem('isGuest', 'true');
     localStorage.removeItem('user');
-    
-    // 👈 Ensure StudyContext knows this is a guest session
     localStorage.setItem('user_email', JSON.stringify("guest")); 
   };
 
   const handleLogout = () => {
-    // 1. Clear Auth States
     setUser(null);
     setIsGuest(false);
-    
-    // 2. Clear Auth Storage
     localStorage.removeItem('user');
     localStorage.removeItem('isGuest');
-
-    // 3. Wipe App Session Data (Fixes Phantom Text & Extra Graph Files)
-    // When the next user logs in and StudyProvider remounts, it will start completely fresh.
     localStorage.removeItem('user_email'); 
     localStorage.removeItem('chatHistory');
     localStorage.removeItem('currentTopic');
@@ -59,10 +55,9 @@ export default function App() {
   };
 
   // --- GATEWAY SCREEN ---
-  // If no user is logged in AND they haven't clicked "Continue as Guest"
   if (!user && !isGuest) {
     return (
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <GoogleOAuthProvider clientId={clientId}>
         <div className="flex h-screen bg-gray-950 items-center justify-center font-sans px-4">
           <div className="bg-gray-900 p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full text-center space-y-6">
             <BookOpen className="w-16 h-16 text-indigo-500 mx-auto" />
@@ -98,13 +93,11 @@ export default function App() {
 
   // --- MAIN APP LAYOUT ---
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      {/* 👈 THE FIX: Pass only the prop. No key, no crashing. */}
+    <GoogleOAuthProvider clientId={clientId}>
       <StudyProvider userEmail={user ? user.email : (isGuest ? 'guest' : null)}> 
         <Router>
           <div className="flex h-screen bg-gray-950 font-sans overflow-hidden relative">
             
-            {/* Mobile Overlay (Click to close sidebar) */}
             {isSidebarOpen && (
               <div 
                 className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
@@ -121,8 +114,6 @@ export default function App() {
             />
             
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-              
-              {/* Top Header (Visible only on mobile/small screens) */}
               <header className="flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800 md:hidden z-10 shadow-md">
                 <div className="text-xl font-bold text-indigo-400 flex items-center gap-2">
                   📚 Study Space
@@ -135,7 +126,6 @@ export default function App() {
                 </button>
               </header>
 
-              {/* Main Content Area */}
               <main className="flex-1 p-4 md:p-10 overflow-y-auto custom-scrollbar">
                 <Routes>
                   <Route path="/" element={<Navigate to="/chat" replace />} />
@@ -147,7 +137,6 @@ export default function App() {
                 </Routes>
               </main>
             </div>
-
           </div>
         </Router>
       </StudyProvider>
