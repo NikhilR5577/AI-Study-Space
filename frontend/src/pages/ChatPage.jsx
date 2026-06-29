@@ -5,7 +5,7 @@ import { sendChatMessageStream } from '../services/chatApi';
 import { uploadFile, processFile, processUrl, transcribeAudio } from '../services/uploadApi';
 import { useStudy } from "../components/StudyContext";
 
-// 💡 Added Math formatting imports
+// 💡 Math formatting imports
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -45,6 +45,16 @@ export default function ChatPage() {
         behavior: "smooth"
     });
   }, [chatHistory]);
+
+  // 👈 THE FIX: Math formatter to safely convert AI brackets to Markdown dollar signs
+  const formatMath = (text) => {
+    if (!text) return "";
+    return text
+      .replace(/\\\[/g, '$$$$') // Converts \[ to $$
+      .replace(/\\\]/g, '$$$$') // Converts \] to $$
+      .replace(/\\\(/g, '$')    // Converts \( to $
+      .replace(/\\\)/g, '$');   // Converts \) to $
+  };
 
   const handleVoiceClick = async () => {
     if (isRecording) {
@@ -132,7 +142,6 @@ export default function ChatPage() {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
-    // 👈 THE FIX: Sanitize the user ID perfectly.
     let resolvedUserId = "guest";
     if (userId) {
       if (typeof userId === 'string') {
@@ -261,10 +270,10 @@ export default function ChatPage() {
               <div className={`p-2 rounded-lg shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-indigo-400'}`}>
                 {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
               </div>
-              {/* 👈 FIXED: Render math content correctly using ReactMarkdown, remarkMath, and rehypeKatex */}
               <div className="text-sm md:text-base leading-relaxed tracking-wide whitespace-pre-wrap">
+                {/* 👈 FIXED: msg.content is wrapped in formatMath() before rendering */}
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                  {msg.content}
+                  {formatMath(msg.content)}
                 </ReactMarkdown>
               </div>
             </div>
