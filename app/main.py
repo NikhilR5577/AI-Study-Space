@@ -50,7 +50,7 @@ app = FastAPI(title="AI Study Space Backend", lifespan=lifespan)
 # Expanded origins to support common local development ports (Vite/CRA)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "https://ai-study-space-2.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
