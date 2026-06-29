@@ -5,7 +5,6 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useStudy } from './StudyContext'; 
 
 export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleLoginSuccess }) {
-  // 👈 THE FIX: Pull in the startNewChat function from our context
   const { startNewChat } = useStudy();
 
   const navItems = [
@@ -16,7 +15,7 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
   ];
 
   return (
-    <div className={`fixed inset-y-0 left-0 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-50 w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-screen text-gray-100 shadow-2xl md:shadow-none`}>
+    <div className={`fixed inset-y-0 left-0 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-50 w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-[100dvh] text-gray-100 shadow-2xl md:shadow-none`}>
       
       <div className="p-6 flex items-center justify-between border-b border-gray-800">
         <div className="text-2xl font-bold text-indigo-400">
@@ -27,12 +26,11 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
         </button>
       </div>
 
-      {/* 👈 THE FIX: New Chat Button UI */}
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-4 flex-none">
         <button 
           onClick={() => {
             startNewChat();
-            if (window.innerWidth < 768) setIsOpen(false); // Auto-close sidebar on mobile after clicking
+            if (window.innerWidth < 768) setIsOpen(false);
           }}
           className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-xl transition-all font-medium shadow-lg shadow-indigo-900/20 active:scale-95"
         >
@@ -41,7 +39,7 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
         </button>
       </div>
       
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -61,9 +59,9 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
           );
         })}
       </nav>
-
-      {/* --- User Profile / Login Bottom Section --- */}
-      <div className="p-4 border-t border-gray-800 bg-gray-950/30">
+      
+      {/* --- User Profile / Login Bottom Section (Pinned with flex-none) --- */}
+      <div className="p-4 border-t border-gray-800 bg-gray-950/30 flex-none min-h-[80px]">
         {user ? (
           <div className="flex items-center gap-3">
             <img 
@@ -96,17 +94,16 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
             
             <div className="w-full flex justify-center scale-90 mt-1">
                <GoogleLogin 
-                 onSuccess={handleLoginSuccess}
-                 onError={() => console.log('Login Failed')}
-                 theme="filled_black"
-                 shape="pill"
-                 text="signin"
-                />
+                  onSuccess={handleLoginSuccess}
+                  onError={() => console.log('Login Failed')}
+                  theme="filled_black"
+                  shape="pill"
+                  text="signin"
+               />
             </div>
           </div>
         )}
       </div>
-
     </div>
   );
 }

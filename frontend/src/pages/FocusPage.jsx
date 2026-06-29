@@ -12,10 +12,8 @@ export default function FocusPage() {
     activeSources
   } = useStudy();
 
-  // FIX 1: Local state to control the visibility of the success message
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // FIX 2: Watch the timer. When it hits 0, show success message and reset after 4 seconds.
   useEffect(() => {
     if (timeLeft === 0 && isRunning) {
       setIsRunning(false);
@@ -38,7 +36,7 @@ export default function FocusPage() {
 
   const handleReset = () => {
     setIsRunning(false);
-    setShowSuccess(false); // Clear success message if user manually resets
+    setShowSuccess(false); 
     changeTimerMode(timerConfig / 60); 
   };
 
@@ -53,18 +51,18 @@ export default function FocusPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto space-y-8 md:space-y-10 animate-in fade-in duration-500">
       
-      <div className="flex justify-between items-end">
+      {/* RESPONSIVE HEADER: Stacks on mobile, side-by-side on desktop */}
+      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-gray-100 flex items-center gap-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-100 flex items-center gap-3">
             Focus Mode ⏱️
           </h1>
           <p className="text-gray-400 mt-2">Pomodoro timer for deep work.</p>
         </div>
         
-        {/* Timer Mode Selection */}
-        <div className="flex gap-2 bg-[#111111] border border-gray-800 p-1.5 rounded-xl">
+        <div className="flex gap-2 bg-[#111111] border border-gray-800 p-1.5 rounded-xl self-start">
           {[25, 50, 90].map(mins => (
             <button 
               key={mins}
@@ -82,8 +80,8 @@ export default function FocusPage() {
       </div>
       
       {/* Timer Display */}
-      <div className="bg-[#111111] p-12 rounded-3xl border border-gray-800/60 flex flex-col items-center shadow-2xl relative">
-        <div className="text-8xl md:text-9xl font-black font-mono text-white mb-10 tracking-tight">
+      <div className="bg-[#111111] p-8 md:p-12 rounded-3xl border border-gray-800/60 flex flex-col items-center shadow-2xl relative">
+        <div className="text-7xl md:text-9xl font-black font-mono text-white mb-8 md:mb-10 tracking-tight">
           {formatTime(timeLeft)}
         </div>
         
@@ -105,19 +103,16 @@ export default function FocusPage() {
           </button>
         </div>
 
-        {/* FIX 3: Success Message UI - appears smoothly when timer hits 0 */}
         {showSuccess && (
-          <div className="absolute bottom-6 flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-4 py-2 rounded-full animate-in slide-in-from-bottom-2 fade-in duration-300">
+          <div className="absolute bottom-6 flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-4 py-2 rounded-full animate-in slide-in-from-bottom-2 fade-in duration-300 text-sm md:text-base">
             <CheckCircle className="w-5 h-5" />
             <span className="font-medium">Session Complete! Great focus.</span>
           </div>
         )}
       </div>
 
-      {/* Active Study Sources (DYNAMIC) */}
       <div className="bg-[#0a0a0a] border border-gray-800/60 p-6 rounded-2xl">
         <h3 className="text-sm font-mono text-gray-500 uppercase tracking-wider mb-4">Current Context</h3>
-        
         <div className="space-y-4">
           {activeSources.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-gray-500 py-6 gap-2">
@@ -135,14 +130,8 @@ export default function FocusPage() {
                   {getSourceIcon(sourceType)}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 font-mono mb-1 uppercase">{sourceType}:</p>
-                    
                     {isUrl ? (
-                      <a 
-                        href={sourceName} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-emerald-400 hover:text-emerald-300 text-sm font-mono bg-gray-900 px-3 py-1.5 rounded-md border border-gray-800 w-fit block transition-colors truncate"
-                      >
+                      <a href={sourceName} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-sm font-mono bg-gray-900 px-3 py-1.5 rounded-md border border-gray-800 w-fit block transition-colors truncate">
                         {sourceName}
                       </a>
                     ) : (
@@ -157,7 +146,6 @@ export default function FocusPage() {
           )}
         </div>
       </div>
-
     </div>
   );
 }

@@ -34,7 +34,6 @@ export default function ChatPage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // --- Voice Recording States & Refs ---
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -49,10 +48,10 @@ export default function ChatPage() {
   const formatMath = (text) => {
     if (!text) return "";
     return text
-      .replace(/\\\[/g, '$$$$') // Converts \[ to $$
-      .replace(/\\\]/g, '$$$$') // Converts \] to $$
-      .replace(/\\\(/g, '$')    // Converts \( to $
-      .replace(/\\\)/g, '$');   // Converts \) to $
+      .replace(/\\\[/g, '$$$$') 
+      .replace(/\\\]/g, '$$$$') 
+      .replace(/\\\(/g, '$')    
+      .replace(/\\\)/g, '$');   
   };
 
   const handleVoiceClick = async () => {
@@ -152,8 +151,6 @@ export default function ChatPage() {
       }
     }
 
-    console.log("DEBUG: Sending message with cleaned user_id:", resolvedUserId);
-
     const userMessage = inputMessage.trim();
     setInputMessage(''); 
     const now = new Date().toISOString();
@@ -176,7 +173,6 @@ export default function ChatPage() {
     
     setIsLoading(true); 
 
-    // --- URL Interception Logic ---
     const isUrl = /^https?:\/\/[^\s]+$/i.test(userMessage);
     if (isUrl) {
       updateLastAssistantMessage(`🌐 I see a URL! Fetching and processing the webpage content...`);
@@ -198,7 +194,6 @@ export default function ChatPage() {
       return;
     }
 
-    // --- AI Chat Logic ---
     try {
       let fullResponse = ""; 
       
@@ -242,7 +237,6 @@ export default function ChatPage() {
   };
 
   return (
-    // FIX 1: Changed h-[calc...] to h-full w-full min-w-0 to fit inside App.jsx dynamically
     <div className="flex flex-col h-full w-full max-w-5xl mx-auto text-gray-100 min-w-0">
       
       <div className="mb-4 shrink-0">
@@ -252,7 +246,7 @@ export default function ChatPage() {
         />
       </div>
 
-      <div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 overflow-y-auto space-y-4 mb-4 shadow-xl custom-scrollbar min-w-0">
+      <div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl p-3 md:p-6 overflow-y-auto space-y-4 mb-4 shadow-xl custom-scrollbar min-w-0">
         
         {chatHistory.length === 0 ? (
            <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3 opacity-50">
@@ -263,17 +257,16 @@ export default function ChatPage() {
           chatHistory.map((msg) => (
             <div 
               key={msg.id} 
-              // Added max-w-[95%] for mobile so bubbles don't hit the absolute edges
-              className={`flex items-start gap-3 md:gap-4 p-4 rounded-xl max-w-[95%] md:max-w-[85%] transition-all ${
+              className={`flex items-start gap-2 md:gap-4 p-3 md:p-4 rounded-xl max-w-[98%] md:max-w-[85%] transition-all ${
                 msg.role === 'user' ? 'bg-indigo-600/20 border border-indigo-500/30 ml-auto flex-row-reverse' : 'bg-gray-950 border border-gray-800/80 mr-auto'
               }`}
             >
-              <div className={`p-2 rounded-lg shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-indigo-400'}`}>
-                {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+              <div className={`p-1.5 rounded-lg shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-indigo-400'}`}>
+                {msg.role === 'user' ? <User className="w-4 h-4 md:w-5 md:h-5" /> : <Bot className="w-4 h-4 md:w-5 md:h-5" />}
               </div>
               
-              {/* FIX 2: Added min-w-0 overflow-x-auto w-full. This creates a scrolling fence for long LaTeX equations. */}
-              <div className="text-sm md:text-base leading-relaxed tracking-wide whitespace-pre-wrap min-w-0 overflow-x-auto w-full custom-scrollbar">
+              {/* Responsive typography and density */}
+              <div className="text-xs md:text-sm leading-snug md:leading-relaxed tracking-wide whitespace-pre-wrap min-w-0 overflow-x-auto w-full custom-scrollbar">
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                   {formatMath(msg.content)}
                 </ReactMarkdown>
@@ -283,17 +276,16 @@ export default function ChatPage() {
         )}
 
         {isLoading && (
-          <div className="flex items-center gap-3 text-gray-400 text-sm bg-gray-950 border border-gray-800 p-4 rounded-xl w-fit animate-pulse">
-              <Bot className="w-5 h-5 text-indigo-400 animate-spin" />
-              Processing payload response...
+          <div className="flex items-center gap-3 text-gray-400 text-xs md:text-sm bg-gray-950 border border-gray-800 p-3 rounded-xl w-fit animate-pulse">
+              <Bot className="w-4 h-4 md:w-5 md:h-5 text-indigo-400 animate-spin" />
+              Processing...
           </div>
         )}
         
         <div ref={messagesEndRef} />
       </div>
 
-      {/* FIX 3: Added w-full and shrink-0 to prevent the form from getting squashed vertically */}
-      <form onSubmit={handleSendMessage} className="bg-gray-900 border border-gray-800 rounded-xl p-2 md:p-3 flex items-center gap-2 md:gap-3 shadow-lg w-full shrink-0">
+      <form onSubmit={handleSendMessage} className="bg-gray-900 border border-gray-800 rounded-xl p-2 flex items-center gap-2 shadow-lg w-full shrink-0">
         <input 
           type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden"
           accept=".pdf,.docx,.doc,.pptx,.png,.jpg,.jpeg"
@@ -302,7 +294,6 @@ export default function ChatPage() {
         <button 
           type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading || isLoading}
           className={`p-2 rounded-lg transition-colors shrink-0 ${isUploading ? 'text-indigo-400 animate-pulse' : 'text-gray-400 hover:text-indigo-400 hover:bg-gray-950'}`}
-          title="Upload document or presentation"
         >
           <Paperclip className="w-5 h-5" />
         </button>
@@ -316,22 +307,20 @@ export default function ChatPage() {
               ? 'bg-red-600/20 text-red-400 border border-red-500/30 animate-pulse' 
               : 'text-gray-400 hover:text-indigo-400 hover:bg-gray-950'
           }`}
-          title={isRecording ? "Stop recording" : "Dictate message"}
         >
           {isRecording ? <Square className="w-5 h-5 fill-red-400" /> : <Mic className="w-5 h-5" />}
         </button>
 
         <input 
           type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
-          placeholder={isRecording ? "Listening..." : `Ask anything using ${model}...`}
-          // FIX 4: Added min-w-0 so the input box allows itself to shrink on small screens without pushing buttons out of view
-          className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 md:px-4 md:py-2.5 text-sm md:text-base text-gray-100 focus:outline-none focus:border-indigo-500 transition-colors placeholder-gray-500"
+          placeholder={isRecording ? "Listening..." : "Ask..."}
+          className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-indigo-500 transition-colors placeholder-gray-500"
           disabled={isLoading || isUploading || isRecording}
         />
 
         <button 
           type="submit" disabled={!inputMessage.trim() || isLoading || isUploading || isRecording}
-          className={`p-2 rounded-lg transition-all shrink-0 ${inputMessage.trim() && !isLoading && !isUploading ? 'bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+          className={`p-2 rounded-lg transition-all shrink-0 ${inputMessage.trim() && !isLoading && !isUploading ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
         >
           <Send className="w-5 h-5" />
         </button>
