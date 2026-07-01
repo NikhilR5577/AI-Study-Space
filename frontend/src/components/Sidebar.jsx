@@ -14,7 +14,7 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
     const fetchHistory = async () => {
       const userEmail = user?.email || 'guest';
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/sessions/metadata/${userEmail}`);
+        const response = await fetch(`https://ai-study-space-backend.onrender.com/api/sessions/metadata/${userEmail}`);
         const result = await response.json();
         if (result.status === 'success') {
            setSessionMetadata(result.data);

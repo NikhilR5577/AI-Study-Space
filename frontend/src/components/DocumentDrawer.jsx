@@ -38,7 +38,7 @@ export default function DocumentDrawer({ isOpen, onClose }) {
       setDocText('');
       setErrorText('');
       
-      const apiBase = 'http://127.0.0.1:8000';
+      const apiBase = 'https://ai-study-space-backend.onrender.com';
       fetch(`${apiBase}/files/text/${encodeURIComponent(selectedDoc.name)}`)
         .then(res => {
           if (!res.ok) throw new Error('Failed to load text');
@@ -153,7 +153,7 @@ export default function DocumentDrawer({ isOpen, onClose }) {
   const getOpenUrl = (doc) => {
     if (!doc) return '';
     if (doc.type === 'url') return doc.name;
-    const apiBase = 'http://127.0.0.1:8000';
+    const apiBase = 'https://ai-study-space-backend.onrender.com';
     return `${apiBase}/files/view/${encodeURIComponent(doc.name)}`;
   };
 
