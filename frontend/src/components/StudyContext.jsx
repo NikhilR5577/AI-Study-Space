@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import api from "../services/api";
 
 const StudyContext = createContext();
@@ -19,16 +19,17 @@ export function StudyProvider({ children, userEmail }) {
     if (typeof id === 'string') return id.replace(/^"|"$/g, '');
     if (id.email) return id.email;
     return String(id);
-  };
+  }; 
 
   // ===========================
   // SETTINGS & IDENTITY
   // ===========================
-  const [provider, setProvider] = useState("mistral");
-  const [model, setModel] = useState("mistral-small");
+  const [provider, setProvider] = useState("groq");
+  const [model, setModel] = useState("llama-3.3");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [userId, setUserId] = useState(() => loadFromStorage("user_email", null));
   const [isDataLoaded, setIsDataLoaded] = useState(false); 
+  const [isSessionLoading, setIsSessionLoading] = useState(false); // Prevents autosave during session switch
 
   useEffect(() => {
     if (userEmail) {
@@ -39,8 +40,9 @@ export function StudyProvider({ children, userEmail }) {
   }, [userEmail]);
 
   // ===========================
-  // CHAT STATE
+  // SESSION & CHAT STATE
   // ===========================
+  const [sessionMetadata, setSessionMetadata] = useState([]); 
   const [chatHistory, setChatHistory] = useState(() => loadFromStorage("chatHistory", []));
   const [currentTopic, setCurrentTopic] = useState(() => loadFromStorage("currentTopic", ""));
   const [activeSources, setActiveSources] = useState(() => loadFromStorage("activeSources", []));
@@ -60,9 +62,10 @@ export function StudyProvider({ children, userEmail }) {
     { day: "Wed", hours: 0 }, { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }
   ]));
   const [studyHistory, setStudyHistory] = useState(() => loadFromStorage("studyHistory", []));
+  const [studyGoals, setStudyGoals] = useState(() => loadFromStorage("studyGoals", []));
 
   // ===========================
-  // SECURE MONGODB SYNC LOGIC
+  // TWO-TIER MONGODB HYDRATION
   // ===========================
   const fetchUserData = useCallback(async (rawEmail) => {
     const cleanEmail = getCleanUserId(rawEmail);
@@ -75,17 +78,25 @@ export function StudyProvider({ children, userEmail }) {
     setIsDataLoaded(false); 
     
     try {
-      const chatRes = await api.get(`/api/chat/history/${cleanEmail}`);
-      if (chatRes.data && chatRes.data.history) setChatHistory(chatRes.data.history);
+      // 1. Fetch Tier 1 Metadata (For Sidebar History)
+      const metaRes = await api.get(`/api/sessions/metadata/${cleanEmail}`);
+      if (metaRes.data && metaRes.data.data) {
+        setSessionMetadata(metaRes.data.data);
+        
+        // 2. Fetch Tier 2 Deep Data (Auto-load the most recent session)
+        if (metaRes.data.data.length > 0) {
+          const recentId = metaRes.data.data[0].sessionId;
+          await loadSession(recentId); // Uses the updated loadSession function below
+        }
+      }
 
-      const graphRes = await api.get(`/api/graph/${cleanEmail}`);
-      if (graphRes.data && graphRes.data.nodes) setGraphData({ nodes: graphRes.data.nodes, links: graphRes.data.links });
-
+      // 3. Fetch Analytics
       const analyticsRes = await api.get(`/api/analytics/${cleanEmail}`);
       if (analyticsRes.data) {
         const analytics = analyticsRes.data;
         if (analytics.studyData) setStudyData(analytics.studyData);
         if (analytics.studyHistory) setStudyHistory(analytics.studyHistory);
+        if (analytics.goals) setStudyGoals(analytics.goals);
         if (analytics.currentStreak !== undefined) setCurrentStreak(analytics.currentStreak);
         if (analytics.sessionsCompleted !== undefined) setSessionsCompleted(analytics.sessionsCompleted);
       }
@@ -94,6 +105,17 @@ export function StudyProvider({ children, userEmail }) {
     } finally {
       setIsDataLoaded(true); 
     }
+  }, []);
+
+  // PATCH: Sidebar Sync Engine
+  const refreshMetadataOnly = useCallback(async (rawEmail) => {
+    const cleanEmail = getCleanUserId(rawEmail);
+    try {
+      const metaRes = await api.get(`/api/sessions/metadata/${cleanEmail}`);
+      if (metaRes.data && metaRes.data.data) {
+        setSessionMetadata(metaRes.data.data);
+      }
+    } catch (err) { console.error("Sidebar refresh failed:", err); }
   }, []);
 
   useEffect(() => {
@@ -105,13 +127,44 @@ export function StudyProvider({ children, userEmail }) {
   }, [userId, fetchUserData]);
 
   // ===========================
-  // MODIFIED FUNCTIONS
+  // MODIFIED SESSION LOADING
+  // ===========================
+  const loadSession = async (targetSessionId) => {
+    setIsSessionLoading(true); // LOCK SAVES
+    try {
+      const cleanEmail = getCleanUserId(userId);
+      const sessionRes = await api.get(`/api/sessions/${targetSessionId}`, {
+        params: { user_email: cleanEmail }
+      });
+      if (sessionRes.data && sessionRes.data.data) {
+        const data = sessionRes.data.data;
+        setSessionId(data.sessionId);
+        setCurrentTopic(data.topic || "");
+        setChatHistory(data.chatTranscript || []);
+        
+        // Accept 'edges' from backend and map to 'links' for frontend
+        const rawGraph = data.knowledgeGraph || {};
+        setGraphData({
+            nodes: rawGraph.nodes || [],
+            links: rawGraph.links || rawGraph.edges || []
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load session:", err);
+    } finally {
+      setIsSessionLoading(false); // UNLOCK SAVES
+    }
+  };
+
+  // ===========================
+  // CHAT & GRAPH FUNCTIONS
   // ===========================
   const startNewChat = () => {
     setSessionId(crypto.randomUUID());
     setChatHistory([]);
     setCurrentTopic("");
     setActiveSources([]);
+    setGraphData({ nodes: [], links: [] });
   };
 
   const addChatMessage = (messageObj) => {
@@ -137,9 +190,7 @@ export function StudyProvider({ children, userEmail }) {
     });
   };
 
-  const setUploadedSources = (sources) => {
-    setActiveSources(sources);
-  };
+  const setUploadedSources = (sources) => setActiveSources(sources);
 
   const updateKnowledgeGraph = (newNodes, newLinks) => {
     if (!newNodes || newNodes.length === 0) return;
@@ -166,31 +217,8 @@ export function StudyProvider({ children, userEmail }) {
           l => (l.source === incomingLink.source && l.target === incomingLink.target) || 
                (l.source === incomingLink.target && l.target === incomingLink.source)
         );
-        if (!linkExists) {
-          updatedLinks.push(incomingLink);
-        }
+        if (!linkExists) updatedLinks.push(incomingLink);
       });
-
-      // FIX 1: Graph Continuity Enforcer
-      // Links the last old node to the first new node if follow-up question is asked
-      if (prevGraph.nodes.length > 0 && newNodes.length > 0) {
-        const lastOldNode = prevGraph.nodes[prevGraph.nodes.length - 1];
-        const firstNewNode = newNodes[0];
-
-        if (lastOldNode.id !== firstNewNode.id) {
-            const continuityLinkExists = updatedLinks.some(
-                l => (l.source === lastOldNode.id && l.target === firstNewNode.id) ||
-                     (l.source === firstNewNode.id && l.target === lastOldNode.id)
-            );
-            if (!continuityLinkExists) {
-                updatedLinks.push({
-                    source: lastOldNode.id,
-                    target: firstNewNode.id,
-                    name: "Follow-up Context"
-                });
-            }
-        }
-      }
 
       return { nodes: updatedNodes, links: updatedLinks };
     });
@@ -223,46 +251,72 @@ export function StudyProvider({ children, userEmail }) {
     setCurrentTopic("");
     setActiveSources([]);
     setGraphData({ nodes: [], links: [] });
+    setSessionMetadata([]);
     setStudyData([
       { day: "Sun", hours: 0 }, { day: "Mon", hours: 0 }, { day: "Tue", hours: 0 },
       { day: "Wed", hours: 0 }, { day: "Thu", hours: 0 }, { day: "Fri", hours: 0 }, { day: "Sat", hours: 0 }
     ]);
     setStudyHistory([]);
+    setStudyGoals([]);
     setCurrentStreak(0);
     setSessionsCompleted(0);
 
-    localStorage.removeItem("user_email");
-    localStorage.removeItem("chatHistory");
-    localStorage.removeItem("currentTopic");
-    localStorage.removeItem("activeSources");
-    localStorage.removeItem("graphData");
-    localStorage.removeItem("studyData");
-    localStorage.removeItem("studyHistory");
-    localStorage.removeItem("currentStreak");
-    localStorage.removeItem("sessionsCompleted");
+    const keysToRemove = ["user_email", "chatHistory", "currentTopic", "activeSources", "graphData", "studyData", "studyHistory", "studyGoals", "currentStreak", "sessionsCompleted"];
+    keysToRemove.forEach(key => localStorage.removeItem(key));
   };
 
   // ===========================
-  // AUTO-SAVE
+  // BUG FIX: DEBOUNCED AUTO-SAVE
   // ===========================
+  
   useEffect(() => {
     localStorage.setItem("user_email", JSON.stringify(userId));
-    localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
     localStorage.setItem("currentTopic", JSON.stringify(currentTopic));
     localStorage.setItem("activeSources", JSON.stringify(activeSources));
     localStorage.setItem("graphData", JSON.stringify(graphData));
     localStorage.setItem("studyData", JSON.stringify(studyData));
     localStorage.setItem("studyHistory", JSON.stringify(studyHistory));
+    localStorage.setItem("studyGoals", JSON.stringify(studyGoals));
     localStorage.setItem("currentStreak", JSON.stringify(currentStreak));
     localStorage.setItem("sessionsCompleted", JSON.stringify(sessionsCompleted));
+  }, [userId, chatHistory, currentTopic, activeSources, graphData, studyData, studyHistory, studyGoals, currentStreak, sessionsCompleted]);
 
+  useEffect(() => {
     const cleanUserId = getCleanUserId(userId);
+    // THE GUARD: Stop autosave if we are loading a session
+    if (cleanUserId === "guest" || !isDataLoaded || isSessionLoading) return;
 
-    if (cleanUserId !== "guest" && isDataLoaded) {
-      api.post(`/api/graph/${cleanUserId}`, graphData).catch(console.error);
-      api.post(`/api/analytics/${cleanUserId}`, { studyData, studyHistory, currentStreak, sessionsCompleted }).catch(console.error);
-    }
-  }, [userId, chatHistory, currentTopic, activeSources, graphData, studyData, studyHistory, currentStreak, sessionsCompleted, isDataLoaded]);
+    const timeoutId = setTimeout(() => {
+      const payload = {
+        sessionId: sessionId,
+        userEmail: cleanUserId,
+        topic: currentTopic || "New Study Session",
+        durationMinutes: 0, 
+        documents: activeSources.map(src => ({ fileName: typeof src === 'string' ? src : (src.name || "Document") })),
+        chatTranscript: chatHistory,
+        
+        // 🛡️ THE FIX: Strip the physics engine objects back to raw string IDs!
+        knowledgeGraph: {
+            nodes: graphData.nodes,
+            edges: graphData.links.map(link => ({
+                source: typeof link.source === 'object' ? link.source.id : link.source,
+                target: typeof link.target === 'object' ? link.target.id : link.target,
+                name: link.name || "Related to"
+            }))
+        }
+      };
+      
+      // Save data, then trigger sidebar metadata refresh
+      api.post(`/api/sessions/save`, payload)
+        .then(() => refreshMetadataOnly(cleanUserId)) 
+        .catch(console.error);
+      
+      api.post(`/api/analytics/${cleanUserId}`, { studyData, studyHistory, currentStreak, sessionsCompleted, goals: studyGoals }).catch(console.error);
+    }, 2500); 
+
+    return () => clearTimeout(timeoutId);
+  }, [chatHistory, graphData, currentTopic, activeSources, studyData, studyHistory, studyGoals, currentStreak, sessionsCompleted, isDataLoaded, isSessionLoading, sessionId, userId, refreshMetadataOnly]);
+
 
   // ===========================
   // TIMER & NOTIFICATIONS 
@@ -270,8 +324,10 @@ export function StudyProvider({ children, userEmail }) {
   const [timerConfig, setTimerConfig] = useState(25 * 60);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
+  const timerResetRef = useRef(null);
 
   const changeTimerMode = (minutes) => {
+    clearTimeout(timerResetRef.current);
     const seconds = minutes * 60;
     setTimerConfig(seconds);
     setTimeLeft(seconds);
@@ -285,10 +341,8 @@ export function StudyProvider({ children, userEmail }) {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (isRunning && timeLeft === 0) {
-      // 1. Stop timer
       setIsRunning(false);
       
-      // 2. Safely log all data
       const hoursStudied = timerConfig / 3600;
       const minutesStudied = timerConfig / 60;
       const currentDayIndex = new Date().getDay();
@@ -304,22 +358,21 @@ export function StudyProvider({ children, userEmail }) {
         ...prev
       ]);
       
-      setSessionsCompleted((prev) => prev + 1);
-      if (sessionsCompleted === 0) setCurrentStreak((prev) => prev + 1);
+      setSessionsCompleted((prev) => {
+        if (prev === 0) setCurrentStreak((s) => s + 1);
+        return prev + 1;
+      });
 
-      // 3. Send OS Notification
       if (Notification.permission === "granted") {
         new Notification("Deep Work Session Complete!", { body: "Great job! Your study session has been logged." });
       }
 
-      // FIX 2: Delayed reset. Gives the FocusPage exactly 4 seconds to show the 
-      // "Session Complete!" message before the timer rewinds.
-      setTimeout(() => {
+      timerResetRef.current = setTimeout(() => {
         setTimeLeft((current) => current === 0 ? timerConfig : current);
       }, 4000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft, timerConfig, currentTopic, sessionsCompleted]);
+  }, [isRunning, timeLeft, timerConfig, currentTopic]);
 
   useEffect(() => {
     if ("Notification" in window) {
@@ -332,12 +385,13 @@ export function StudyProvider({ children, userEmail }) {
       value={{
         provider, setProvider, model, setModel, sessionId,
         userId, setUserId, 
+        sessionMetadata, setSessionMetadata, loadSession, 
         chatHistory, addChatMessage, updateLastAssistantMessage, 
         currentTopic, setCurrentTopic,
         activeSources, setUploadedSources,
         graphData, updateKnowledgeGraph,
         timerConfig, timeLeft, setTimeLeft, isRunning, setIsRunning, changeTimerMode,
-        studyData, studyHistory, currentStreak, sessionsCompleted,
+        studyData, studyHistory, studyGoals, setStudyGoals, currentStreak, sessionsCompleted,
         addStudySession,
         clearSessionData,
         startNewChat

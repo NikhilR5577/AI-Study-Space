@@ -1,0 +1,101 @@
+# STUDY SPACE V2.0 - MASTER BLUEPRINT & BUG POST-MORTEM
+Date: June 30, 2026
+Status: Approved for Engineering
+
+---
+
+## PART 1: THE BUG POST-MORTEM (CRITICAL FIXES)
+These bugs represent structural flaws in the V1 data flow or severe performance bottlenecks. They must be resolved through architectural shifts, not band-aids.
+
+### 1. Database Spam (The "Stream-Save" Bug)
+* **The Bug:** The app fires a MongoDB `POST` request on every single text chunk during an AI streaming response (100+ API calls per message).
+* **Root Cause:** `chatHistory` is in the dependency array of the auto-save `useEffect` in `StudyContext.jsx`.
+* **The Fix:** Remove `chatHistory` from the dependency array. Handle MongoDB saving natively on the backend, or only trigger a frontend save when `isStreaming` flips from `true` to `false`.
+
+### 2. The Blocking Thread Pool (The App Freezer)
+* **The Bug:** Document uploading, chunking, and Pinecone embedding block the FastAPI server from handling any other requests (like chats) for 10-30 seconds.
+* **Root Cause:** `def process_file` is synchronous. 
+* **The Fix:** Convert the endpoint to `async def process_file` and wrap Langchain/Pinecone execution in `await asyncio.to_thread()`.
+
+### 3. The "Floating Islands" / Single Node Graph
+* **The Bug:** The Knowledge Graph renders a single massive node containing the user's prompt instead of a connected web of concepts.
+* **Root Cause:** The frontend graph library is receiving raw conversational text. It lacks the AI extraction step to convert text into `{ nodes: [], edges: [] }` JSON.
+* **The Fix:** Move graph extraction to a backend background worker. When a chat completes, the backend updates a dedicated `knowledgeGraph` field in the database. The frontend strictly reads this JSON.
+
+### 4. Vanishing Chat History & Empty Documents
+* **The Bug:** Logging out/in or switching pages causes "Recent Sessions" or the Focus Timer's "Current Context" to wipe out.
+* **Root Cause:** The UI maps over a volatile global chat state rather than a persistent, relational database object. Document metadata is treated as ephemeral.
+* **The Fix:** Implement a "Master Session" architecture (Detailed in Part 2).
+
+### 5. Streak Never Increments Past 1
+* **The Bug:** React state closure bug in `StudyContext.jsx` prevents `currentStreak` from updating after the first session.
+* **The Fix:** Move streak calculations to the backend `metadata` endpoint based on chronological `createdAt` timestamps, ensuring accurate day-to-day tracking.
+
+### 6. Timer Race Condition
+* **The Bug:** Manual user clicks on the Pomodoro timer are overwritten by a delayed 4-second reset timeout.
+* **The Fix:** Implement a `useRef` (e.g., `timerResetRef.current`) to store the timeout ID and execute `clearTimeout()` inside the manual reset handler.
+
+### 7. Double-JSON Auth Strings
+* **The Bug:** The user ID is padded with literal string quotes (`"user@gmail.com"`), forcing the frontend to use regex (`.replace(/^"|"$/g, '')`) to clean it everywhere.
+* **The Fix:** Fix the initial `JSON.stringify` logic on login/localStorage to ensure the context provider passes a clean string globally.
+
+### 8. Housekeeping Bugs (Development Environment)
+* **Vite Config:** Rename `frontend/vita.config.js` to `vite.config.js` to restore React hot-module reloading.
+* **Duplicate Modules:** Delete the corrupted `frontend/node_module/` folder.
+* **Console Leaks:** Remove all `print("DEBUG:...")` statements from the FastAPI production code to secure user data.
+
+---
+
+## PART 2: THE DATA ARCHITECTURE (THE FOUNDATION)
+To support the sidebar, analytics, and background workers, MongoDB must group all data under a `Session`.
+
+### The Master Session Schema (MongoDB)
+```json
+{
+  "sessionId": "Unique-ID",
+  "userEmail": "rocketalfa5577@gmail.com",
+  "topic": "Computer Networking",
+  "createdAt": "2026-06-30T12:00:00Z",
+  "durationMinutes": 25,
+  "documents": [
+    { "fileName": "Assignment_4.pdf", "fileUrl": "...", "extractedText": "..." }
+  ],
+  "chatTranscript": [ { "role": "user", "content": "..." } ],
+  "knowledgeGraph": { "nodes": [], "edges": [] }
+}
+
+The Two-Tier API Logic
+GET /api/sessions/metadata: Returns ONLY sessionId, topic, createdAt, and durationMinutes. Used to populate the global Sidebar History and Analytics dashboard instantly.
+GET /api/sessions/:id: Returns the heavy data (chatTranscript, knowledgeGraph, documents) when a specific session is opened.
+
+PART 3: THE EXECUTION ROADMAP
+Sprint 1: Critical Rescue (Backend & Config)
+Rename vita.config.js, delete node_module, strip backend debug prints.
+Convert FastAPI upload routes to async def + asyncio.to_thread().
+Fix the frontend auto-save loop to stop spamming MongoDB.
+Clean up the JSON.stringify auth bug.
+
+Sprint 2: Data Restructuring
+Update MongoDB/Mongoose models to the Master Session Schema.
+Build the /metadata endpoint for lightweight fetching.
+Update StudyContext.jsx to fetch and store sessions instead of raw chat logs.
+
+Sprint 3: UI/UX & The Vercel Aesthetic
+Design System: Apply bg-zinc-950, Inter/Geist fonts, and replace solid borders with backdrop-blur-md and border-white/10.
+Mobile Layouts: Rebuild the Landing Page (full-width buttons), collapse the Chat Model selector, and optimize the Analytics grid (1-up, 2-down).
+UX Upgrades (Antigravity Validated):
+Install react-syntax-highlighter for colored code blocks in chat.
+Install react-hot-toast to replace native alert() popups.
+Implement animate-pulse skeleton loaders for empty dashboards.
+Add interactive "Empty State" buttons to the chat (e.g., "Upload PDF", "Summarize").
+
+Sprint 4: The EdTech Features
+The Global Sidebar: Inject the /metadata data into a scrollable, chronological history list in the sidebar.
+Auto-Mapping Graph: Hook up the backend extraction worker so the Graph JSON generates silently. Add the animated SVG dummy graph for empty states.
+Pomodoro Loop: Fix the timer race condition, then wire the logic to trigger a 5-minute break immediately after the 25-minute focus block hits zero.
+AI Examiner Mode: Build the UI toggle and backend prompt logic to read session.documents and generate quizzes instead of standard chat replies.
+
+5. Split-Screen Document Preview:
+What: Allow users to view their uploaded PDF natively within the app.
+Where: Add a split-screen toggle to the Chat Page and populate the "Current Context" card on the Focus Timer page.
+How: Utilize the fileUrl from the Tier 2 Session fetch and render it via react-pdf or a secure iframe, allowing users to read the source material alongside the AI's analysis.

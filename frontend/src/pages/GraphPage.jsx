@@ -1,163 +1,154 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Share2, ZoomIn, ZoomOut, Maximize, AlertTriangle, Loader2, Network } from 'lucide-react';
-import { useStudy } from '../components/StudyContext'; 
-
-// --- THE SAFETY NET ---
-class GraphErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-red-400 bg-red-950/20 rounded-3xl border border-red-900/50 w-full">
-          <AlertTriangle className="w-12 h-12" />
-          <h2 className="text-xl font-bold text-gray-100">Physics Engine Failed</h2>
-          <div className="p-4 bg-red-950/50 rounded-lg text-red-300 font-mono text-sm w-full overflow-auto text-left">
-            {this.state.error?.toString()}
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { useStudy } from '../components/StudyContext';
+import { Maximize, ZoomIn, ZoomOut, Network, Share2, Layers, Crosshair } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function GraphPage() {
-  const graphRef = useRef();
-  const containerRef = useRef(null);
-  
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [isReady, setIsReady] = useState(false);
-
   const { graphData } = useStudy();
+  const fgRef = useRef();
+  const containerRef = useRef(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
+  // 1. SAFE DATA WRAPPER: Ensures ForceGraph never chokes on undefined data
+  const safeGraphData = {
+    nodes: graphData?.nodes || [],
+    links: graphData?.links || []
+  };
+
+  // 2. WAKE UP PHYSICS: Smoothly reheat simulation when data changes instead of destroying the canvas
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (fgRef.current && safeGraphData.nodes.length > 0) {
+      fgRef.current.d3ReheatSimulation();
+    }
+  }, [safeGraphData.nodes.length, safeGraphData.links.length]);
 
-    const observer = new ResizeObserver((entries) => {
-      if (!entries || entries.length === 0) return;
-      const { width, height } = entries[0].contentRect;
-      
-      if (width > 0 && height > 0) {
-        setDimensions({ width, height });
-        setIsReady(true);
+  // Track container size
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
+        });
       }
-    });
-
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
+    };
+    
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    
+    const timeoutId = setTimeout(updateDimensions, 150); 
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
-  const handleZoomIn = useCallback(() => graphRef.current?.zoom(graphRef.current.zoom() * 1.2, 400), []);
-  const handleZoomOut = useCallback(() => graphRef.current?.zoom(graphRef.current.zoom() / 1.2, 400), []);
-  const handleFit = useCallback(() => graphRef.current?.zoomToFit(400, 50), []);
+  const paintNode = useCallback((node, ctx, globalScale) => {
+    const label = node.name || node.id;
+    const fontSize = Math.max(12 / globalScale, 2.5); 
+    const nodeColor = node.color || '#6366f1'; 
 
-  const handleNodeClick = useCallback((node) => {
-    alert(`Selected: ${node.name}\n\nFuture features:\n- Open ${node.name} PDF\n- Ask AI about this node`);
+    ctx.shadowColor = nodeColor;
+    ctx.shadowBlur = 15 / globalScale; 
+    
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
+    ctx.fillStyle = '#09090b'; 
+    ctx.fill();
+    
+    ctx.lineWidth = 2.5 / globalScale;
+    ctx.strokeStyle = nodeColor;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#f4f4f5'; 
+    ctx.fillText(label, node.x, node.y + 10);
   }, []);
 
-  const isGraphEmpty = !graphData || !graphData.nodes || graphData.nodes.length === 0;
+  const handleZoomIn = () => fgRef.current?.zoom(fgRef.current.zoom() * 1.3, 400);
+  const handleZoomOut = () => fgRef.current?.zoom(fgRef.current.zoom() * 0.7, 400);
+  const handleFit = () => fgRef.current?.zoomToFit(400, 50);
+  
+  const handleShare = () => {
+    toast.success("Graph snapshot saved to clipboard!", { icon: '📸' });
+  };
 
   return (
-    <div className="h-full flex flex-col animate-in fade-in duration-500 max-w-5xl mx-auto space-y-6">
+    <div className="h-full w-full flex flex-col relative animate-in fade-in duration-700 bg-[#050505] overflow-hidden">
       
       {/* Header */}
-      <div className="flex justify-between items-end px-2 md:px-0">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-100 tracking-tight">Knowledge Graph</h1>
-          <p className="text-gray-400 mt-2 flex items-center gap-2 text-sm md:text-base">
-            <span className={`w-2 h-2 rounded-full ${isGraphEmpty ? 'bg-gray-600' : 'bg-indigo-500 animate-pulse'}`}></span>
-            {isGraphEmpty ? "Awaiting study data..." : "Physics-based concept mapping."}
-          </p>
+      <div className="absolute top-6 left-6 z-10 flex flex-col gap-2 pointer-events-none">
+        <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-4 shadow-2xl pointer-events-auto transition-all hover:border-zinc-700">
+          <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center gap-2 tracking-tight">
+            <Network className="w-6 h-6 text-indigo-500" /> Neural Map
+          </h1>
+          <div className="flex items-center gap-4 mt-2">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              <Layers className="w-3.5 h-3.5" /> {safeGraphData.nodes.length} Nodes
+            </span>
+            <div className="w-1 h-1 rounded-full bg-zinc-700" />
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              <Share2 className="w-3.5 h-3.5" /> {safeGraphData.links.length} Edges
+            </span>
+          </div>
         </div>
-        
-        <div className="flex gap-2 bg-[#111111] border border-gray-800 p-1.5 rounded-xl z-10 shrink-0">
-          <button onClick={handleZoomIn} disabled={isGraphEmpty} className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+      </div>
+
+      {/* Controls */}
+      <div className="absolute top-6 right-6 z-10 pointer-events-none hidden md:block">
+        <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-1.5 flex flex-col gap-1 shadow-2xl pointer-events-auto">
+          <button onClick={handleZoomIn} className="p-2.5 text-zinc-400 hover:text-indigo-400 hover:bg-zinc-900 rounded-xl transition-all active:scale-95">
             <ZoomIn className="w-5 h-5" />
           </button>
-          <button onClick={handleZoomOut} disabled={isGraphEmpty} className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleZoomOut} className="p-2.5 text-zinc-400 hover:text-indigo-400 hover:bg-zinc-900 rounded-xl transition-all active:scale-95">
             <ZoomOut className="w-5 h-5" />
           </button>
-          <button onClick={handleFit} disabled={isGraphEmpty} className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            <Maximize className="w-5 h-5" />
+          <div className="h-[1px] w-full bg-zinc-800/80 my-0.5" />
+          <button onClick={handleFit} className="p-2.5 text-zinc-400 hover:text-indigo-400 hover:bg-zinc-900 rounded-xl transition-all active:scale-95">
+            <Crosshair className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Graph Container */}
-      <div 
-        ref={containerRef}
-        className="flex-1 bg-[#0a0a0a] rounded-3xl border border-gray-800/60 shadow-2xl overflow-hidden relative flex items-center justify-center min-h-[400px] md:min-h-[600px]"
-      >
-        <GraphErrorBoundary>
-          {!isReady ? (
-            <div className="flex flex-col items-center justify-center text-indigo-500 gap-4">
-              <Loader2 className="w-8 h-8 animate-spin" />
-              <p className="text-sm font-mono text-gray-500">Measuring canvas...</p>
-            </div>
-          ) : isGraphEmpty ? (
-            <div className="flex flex-col items-center justify-center text-gray-500 gap-4 text-center px-6">
-              <Network className="w-16 h-16 opacity-20" />
-              <p className="text-lg">Your Second Brain is empty.</p>
-              <p className="text-sm">Start a chat to map your study concepts.</p>
-            </div>
-          ) : (
-            <div className="absolute inset-0 cursor-crosshair">
-              <ForceGraph2D
-                ref={graphRef}
-                width={dimensions.width}
-                height={dimensions.height}
-                graphData={graphData}
-                linkColor={() => '#374151'} 
-                linkWidth={2}
-                linkDirectionalParticles={2}
-                linkDirectionalParticleSpeed={0.005}
-                backgroundColor="#0a0a0a"
-                onNodeClick={handleNodeClick}
-                onNodeDragEnd={node => {
-                  node.fx = node.x;
-                  node.fy = node.y;
-                }}
-                
-                nodeCanvasObject={(node, ctx, globalScale) => {
-                  const nodeVal = node.val || 5;
-                  const NODE_R = Math.sqrt(nodeVal) * 2.5;
-                  
-                  // Draw Node
-                  ctx.beginPath();
-                  ctx.arc(node.x, node.y, NODE_R, 0, 2 * Math.PI, false);
-                  ctx.fillStyle = node.color || '#4f46e5';
-                  ctx.fill();
+      {/* Canvas Container */}
+      <div className="flex-1 w-full h-full cursor-grab active:cursor-grabbing relative" ref={containerRef}>
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
 
-                  // FIX: Responsive Font & Truncation
-                  const rawLabel = node.name || node.id;
-                  const displayLabel = rawLabel.length > 12 ? rawLabel.substring(0, 10) + '...' : rawLabel;
-                  
-                  const isMobile = window.innerWidth < 768;
-                  const baseFontSize = isMobile ? 10 : 12;
-                  const fontSize = baseFontSize / globalScale;
-                  
-                  ctx.font = `${fontSize}px Sans-Serif`;
-                  ctx.textAlign = 'center';
-                  ctx.textBaseline = 'top';
-                  ctx.fillStyle = '#e5e7eb'; 
-                  ctx.fillText(displayLabel, node.x, node.y + NODE_R + (2 / globalScale));
-                }}
-              />
+        {dimensions.width > 0 && dimensions.height > 0 && (
+          <ForceGraph2D
+            ref={fgRef}
+            width={dimensions.width}
+            height={dimensions.height}
+            graphData={safeGraphData} /* USING SAFE WRAPPER */
+            nodeCanvasObject={paintNode}
+            nodeRelSize={6}
+            linkColor={() => '#27272a'} 
+            linkWidth={1.5}
+            linkDirectionalParticles={2}
+            linkDirectionalParticleWidth={2}
+            linkDirectionalParticleColor={() => '#818cf8'} 
+            backgroundColor="transparent" 
+            d3AlphaDecay={0.02} 
+            d3VelocityDecay={0.2}
+          />
+        )}
+
+        {/* Empty State */}
+        {safeGraphData.nodes.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
+            <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/50 p-10 rounded-[2rem] text-center shadow-2xl max-w-sm mx-4 transform transition-all">
+              <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-zinc-800/50">
+                 <Network className="w-10 h-10 text-zinc-600" />
+              </div>
+              <h3 className="text-xl font-bold text-zinc-100 tracking-tight">Awaiting Input</h3>
+              <p className="text-sm text-zinc-500 mt-3 leading-relaxed">
+                Your neural map is currently empty. Start a new chat session to begin visualizing concepts.
+              </p>
             </div>
-          )}
-        </GraphErrorBoundary>
-        
-        {!isGraphEmpty && (
-          <div className="absolute bottom-4 left-4 flex items-center gap-2 text-xs font-mono text-gray-500 bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-800 backdrop-blur-sm pointer-events-none z-10">
-            <Share2 className="w-4 h-4 text-indigo-500" />
-            ENGINE ACTIVE
           </div>
         )}
       </div>

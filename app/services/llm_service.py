@@ -14,6 +14,10 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnableLambda 
 
+# --- NEW: PYDANTIC IMPORTS FOR GRAPH EXTRACTION ---
+from pydantic import BaseModel, Field
+from typing import List
+
 # In-memory store for chat histories
 store = {}
 
@@ -50,14 +54,15 @@ def get_llm(provider: str, model_name: str):
     else:
         return ChatMistralAI(model="mistral-small-2506", temperature=0.3)
 
-# 👈 CUSTOM ASYNC MULTI-QUERY FUNCTION
+# CUSTOM ASYNC MULTI-QUERY FUNCTION
 async def get_unique_docs(query: str):
     """
     Takes the standalone question, generates 3 variations, 
     searches Pinecone concurrently, and returns deduplicated documents.
     """
     vectorstore = get_vectorstore()
-    llm = get_llm("mistral", "mistral-small") 
+    # USE GROQ'S FASTEST MODEL FOR LIGHTNING QUICK QUERY EXPANSION
+    llm = ChatGroq(model="llama3-8b-8192", temperature=0.3)
     
     query_gen_prompt = ChatPromptTemplate.from_template(
         "You are a helpful study assistant. Generate 3 diverse variations of this student question "
@@ -85,11 +90,9 @@ async def get_unique_docs(query: str):
             
     return list(unique_docs.values())
 
-
 def build_rag_chain(provider: str, model_name: str):
     llm = get_llm(provider, model_name)
     
-    # 👈 THE FIX: A dummy synchronous lambda satisfies the strict type-checker.
     custom_retriever = RunnableLambda(func=lambda x: [], afunc=get_unique_docs)
     
     contextualize_q_system_prompt = (
@@ -128,7 +131,6 @@ def build_rag_chain(provider: str, model_name: str):
     
     return create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-
 def get_rag_chain(provider: str, model_name: str):
     base_chain = build_rag_chain(provider, model_name)
     
@@ -141,3 +143,47 @@ def get_rag_chain(provider: str, model_name: str):
     )
     
     return history_chain
+
+# =====================================================================
+# SPRINT 4: BACKEND BRAIN (GRAPH EXTRACTION)
+# =====================================================================
+
+class Node(BaseModel):
+    id: str = Field(description="Unique identifier for the node, usually the core concept name.")
+    name: str = Field(description="Display name of the concept.")
+    val: int = Field(default=5, description="Importance value from 1 to 10.")
+    color: str = Field(default="#818cf8", description="Hex color code based on category (e.g., #818cf8 for concepts, #34d399 for tools).")
+
+class Edge(BaseModel):
+    source: str = Field(description="The id of the source node.")
+    target: str = Field(description="The id of the target node.")
+    name: str = Field(description="The relationship between the source and target.")
+
+class GraphData(BaseModel):
+    nodes: List[Node] = Field(description="List of key concepts extracted from the text.")
+    edges: List[Edge] = Field(description="List of relationships connecting the key concepts.")
+
+def get_graph_extraction_chain(provider: str, model_name: str):
+    """
+    Creates a chain that forces the LLM to output a strictly typed JSON Knowledge Graph.
+    """
+    # We highly recommend Gemini 1.5 Pro/Flash for this, as it excels at structured JSON extraction.
+    llm = get_llm(provider, model_name)
+    
+    # Bind the Pydantic schema to the LLM to enforce strict JSON output
+    structured_llm = llm.with_structured_output(GraphData)
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", 
+         "You are an expert ontology extractor. Your job is to analyze the user's question and the AI's response, "
+         "and extract the core concepts as nodes, and their relationships as edges. "
+         "Keep it concise: extract a maximum of 3-5 highly relevant nodes per message to avoid cluttering the graph. "
+         "Ensure edges strictly connect nodes that exist in your extracted list. "
+         "CRITICAL GRAPH STRUCTURE RULES: "
+         "1. If concepts represent a process or timeline, connect them sequentially (A -> B -> C). "
+         "2. If concepts are independent members of the same category, you MUST create a central 'Parent' node and link all 'Child' nodes directly to it to form a Hub-and-Spoke star shape. Do NOT link independent children to each other."
+        ),
+        ("human", "Extract the Knowledge Graph from this interaction:\n\n{text}")
+    ])
+    
+    return prompt | structured_llm

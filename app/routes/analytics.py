@@ -8,6 +8,7 @@ class AnalyticsSaveRequest(BaseModel):
     studyHistory: list
     currentStreak: int
     sessionsCompleted: int
+    goals: list = []
 
 @router.get("/api/analytics/{user_email}")
 async def get_analytics(user_email: str, request: Request):
