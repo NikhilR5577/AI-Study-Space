@@ -7,7 +7,14 @@ import { useStudy } from './StudyContext';
 export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleLoginSuccess }) {
   const { startNewChat, sessionMetadata, loadSession, sessionId, setSessionMetadata } = useStudy();
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch session history from Render backend
   useEffect(() => {
@@ -140,7 +147,15 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
             <div className={isCollapsed ? 'md:hidden block text-center mb-2' : 'block text-center mb-2'}>
                <p className="text-xs text-zinc-500">Sign in to save progress</p>
             </div>
-            <GoogleLogin onSuccess={handleLoginSuccess} onError={() => console.log('Login Failed')} theme="filled_black" shape="circle" />
+            <div className="flex justify-center w-full overflow-hidden">
+              <GoogleLogin 
+                onSuccess={handleLoginSuccess} 
+                onError={() => console.log('Login Failed')} 
+                theme="filled_black" 
+                shape="circle" 
+                type={(isCollapsed && !isMobile) ? 'icon' : 'standard'}
+              />
+            </div>
           </div>
         )}
       </div>
