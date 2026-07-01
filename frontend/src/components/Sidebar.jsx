@@ -78,30 +78,33 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
         </button>
       </div>
       
-      {/* Main Nav */}
-      <nav className="mt-4 px-3 space-y-1 shrink-0 border-b border-zinc-800/50 pb-6">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsOpen(false)} 
-              className={({ isActive }) =>
-                `flex items-center p-3 rounded-xl transition-all ${
-                  isActive ? 'bg-zinc-900 text-indigo-400 font-medium' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100'
-                } ${isCollapsed ? 'md:justify-center justify-start' : 'justify-start'}`
-              }
-            >
-              <Icon className={`w-5 h-5 ${isCollapsed ? 'md:mr-0 mr-3' : 'mr-3'}`} /> 
-              <span className={isCollapsed ? 'md:hidden block' : 'block'}>{item.label}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
+      {/* Scrollable Middle Section (Nav + History) */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+        
+        {/* Main Nav */}
+        <nav className="px-3 pt-4 pb-6 space-y-1 shrink-0 border-b border-zinc-800/50">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsOpen(false)} 
+                className={({ isActive }) =>
+                  `flex items-center p-3 rounded-xl transition-all ${
+                    isActive ? 'bg-zinc-900 text-indigo-400 font-medium' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100'
+                  } ${isCollapsed ? 'md:justify-center justify-start' : 'justify-start'}`
+                }
+              >
+                <Icon className={`w-5 h-5 ${isCollapsed ? 'md:mr-0 mr-3' : 'mr-3'}`} /> 
+                <span className={isCollapsed ? 'md:hidden block' : 'block'}>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
 
-      {/* Recent Sessions */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 min-h-0">
+        {/* Recent Sessions */}
+        <div className="p-3 space-y-1">
         <div className={`text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3 ${isCollapsed ? 'md:hidden block' : 'block'}`}>Recent</div>
         
         {sessionMetadata && sessionMetadata.length > 0 ? (
@@ -126,6 +129,7 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
              <p className="text-xs text-zinc-500">No recent history</p>
           </div>
         )}
+        </div>
       </div>
       
       {/* Footer / Toggle Section */}
