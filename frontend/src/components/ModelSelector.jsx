@@ -54,7 +54,7 @@ export default function ModelSelector({ selectedModel, setSelectedModel, setSele
       <select
         value={selectedModel}
         onChange={handleChange}
-        className="appearance-none bg-transparent text-zinc-300 text-[13px] font-semibold pl-9 pr-9 py-2.5 outline-none cursor-pointer w-full tracking-wide min-w-[200px]"
+        className="appearance-none bg-transparent text-zinc-300 text-[13px] font-semibold pl-9 pr-8 py-2.5 outline-none cursor-pointer w-full tracking-wide max-w-[130px] sm:max-w-[160px] md:max-w-[200px] truncate"
       >
         {AVAILABLE_PROVIDERS.map((provider) => (
           <optgroup 

@@ -314,8 +314,8 @@ export default function ChatPage() {
           disabled={isLoading || isUploading || isRecording}
         />
 
-        {/* INLINE Model Selector (Hidden on tiny mobile screens to save space) */}
-        <div className="hidden md:block border-l border-zinc-800/80 pl-2 pr-1 scale-90 origin-right">
+        {/* INLINE Model Selector */}
+        <div className="block border-l border-zinc-800/80 pl-2 pr-1 scale-90 origin-right shrink-0">
            <ModelSelector selectedProvider={provider} setSelectedProvider={setProvider} selectedModel={model} setSelectedModel={setModel} />
         </div>
 
