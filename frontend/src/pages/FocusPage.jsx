@@ -25,10 +25,10 @@ export default function FocusPage() {
     (session.documents || []).map(doc => ({ ...doc, sessionId: session.sessionId, topic: session.topic }))
   );
 
-  // Calculate progress percentage for the ring
+  // Calculate total seconds and progress
   const totalSeconds = isBreakMode ? 5 * 60 : timerConfig;
   const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
-  const circumference = 2 * Math.PI * 90; // radius = 90
+  const circumference = 2 * Math.PI * 130; // radius = 130
   const strokeOffset = circumference - (progress / 100) * circumference;
 
   // Timer completion → trigger break
@@ -89,7 +89,7 @@ export default function FocusPage() {
 
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar">
-      <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20 px-4 md:px-0 pt-2">
+      <div className="max-w-3xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20 px-4 md:px-0 pt-6 md:pt-8">
       
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-4">
@@ -141,7 +141,7 @@ export default function FocusPage() {
         }`}>
           
           {/* Subtle top-corner icon */}
-          <div className="absolute top-6 left-6 opacity-40">
+          <div className="hidden md:block absolute top-6 left-6 opacity-40">
             {isBreakMode 
               ? <Coffee className="w-6 h-6 text-emerald-500" /> 
               : <Brain className="w-6 h-6 text-indigo-500" />
@@ -156,67 +156,65 @@ export default function FocusPage() {
           )}
 
           {/* Timer with SVG ring */}
-          <div className="relative flex items-center justify-center py-8 md:py-12">
-            {/* SVG Progress Ring — small, elegant, non-blocking */}
-            <svg className="absolute w-[200px] h-[200px] md:w-[240px] md:h-[240px] -rotate-90 pointer-events-none" viewBox="0 0 200 200">
-              {/* Background track */}
-              <circle
-                cx="100" cy="100" r="90"
-                stroke={isBreakMode ? '#064e3b' : '#27272a'}
-                strokeWidth="2"
-                fill="none"
-                strokeOpacity="0.4"
-              />
-              {/* Progress arc */}
-              <circle
-                cx="100" cy="100" r="90"
-                stroke={isBreakMode ? '#34d399' : '#6366f1'}
-                strokeWidth="3"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeOffset}
-                className="transition-all duration-1000 ease-linear"
-                style={{ filter: `drop-shadow(0 0 6px ${isBreakMode ? 'rgba(52,211,153,0.25)' : 'rgba(99,102,241,0.25)'})` }}
-              />
-            </svg>
+          <div className="relative flex items-center justify-center py-8">
+            <div className="relative flex items-center justify-center w-[260px] h-[260px] md:w-[320px] md:h-[320px]">
+              {/* SVG Progress Ring */}
+              <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 280 280">
+                {/* Background track */}
+                <circle
+                  cx="140" cy="140" r="130"
+                  stroke={isBreakMode ? '#064e3b' : '#27272a'}
+                  strokeWidth="4"
+                  fill="none"
+                />
+                {/* Progress arc */}
+                <circle
+                  cx="140" cy="140" r="130"
+                  stroke={isBreakMode ? '#34d399' : '#6366f1'}
+                  strokeWidth="8"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeOffset}
+                  className="transition-all duration-1000 ease-linear"
+                  style={{ filter: `drop-shadow(0 0 15px ${isBreakMode ? 'rgba(52,211,153,0.5)' : 'rgba(99,102,241,0.5)'})` }}
+                />
+              </svg>
 
-            {/* Time display */}
-            <div className={`relative z-10 text-6xl md:text-8xl font-black font-mono tracking-tighter leading-none select-none transition-colors duration-500 ${
-              isBreakMode ? 'text-emerald-400' : 'text-zinc-100'
-            }`}>
-              {formatTime(timeLeft)}
+              {/* Time display */}
+              <div className={`relative z-10 text-6xl md:text-7xl font-black font-mono tracking-tighter leading-none select-none transition-colors duration-500 ${
+                isBreakMode ? 'text-emerald-400' : 'text-zinc-100'
+              }`}>
+                {formatTime(timeLeft)}
+              </div>
             </div>
           </div>
           
-          {/* Player Controls — pill-shaped */}
-          <div className="flex gap-3 pb-8 md:pb-12 px-6 w-full max-w-md">
-            <button 
-              onClick={() => setIsRunning(!isRunning)} 
-              className={`flex-1 py-4 rounded-2xl transition-all font-bold text-base flex justify-center items-center gap-2.5 active:scale-[0.97] ${
-                isRunning 
-                  ? 'bg-zinc-800/80 text-amber-400 hover:bg-zinc-700 border border-zinc-700/60' 
-                  : isBreakMode
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
-              }`}
-            >
-              {isRunning ? (
-                <><Pause className="w-5 h-5" /> Pause</>
-              ) : isBreakMode ? (
-                <><Play className="w-5 h-5" /> Start Break</>
-              ) : (
-                <><Play className="w-5 h-5" /> Start Focus</>
-              )}
-            </button>
+          {/* Player Controls — Circular Mobile-Friendly Buttons */}
+          <div className="flex gap-8 md:gap-12 pb-10 justify-center items-center w-full">
             
             <button 
               onClick={handleReset} 
-              className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-all active:scale-[0.97]"
+              className="flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all active:scale-95 shadow-sm"
               title="Reset Timer"
             >
-              <RotateCcw className="w-5 h-5" />
+              <RotateCcw className="w-6 h-6 md:w-7 md:h-7" />
             </button>
+            
+            <button 
+              onClick={() => setIsRunning(!isRunning)} 
+              className={`flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full transition-all active:scale-95 ${
+                isRunning 
+                  ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
+                  : isBreakMode
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(52,211,153,0.2)]'
+                    : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
+              }`}
+              title={isRunning ? "Pause" : (isBreakMode ? "Start Break" : "Start Focus")}
+            >
+              {isRunning ? <Pause className="w-6 h-6 md:w-7 md:h-7" fill="currentColor" /> : <Play className="w-6 h-6 md:w-7 md:h-7 ml-1" fill="currentColor" />}
+            </button>
+
           </div>
         </div>
 
