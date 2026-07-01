@@ -62,7 +62,7 @@ async def get_unique_docs(query: str):
     """
     vectorstore = get_vectorstore()
     # USE GROQ'S FASTEST MODEL FOR LIGHTNING QUICK QUERY EXPANSION
-    llm = ChatGroq(model="llama3-8b-8192", temperature=0.3)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.3)
     
     query_gen_prompt = ChatPromptTemplate.from_template(
         "You are a helpful study assistant. Generate 3 diverse variations of this student question "
