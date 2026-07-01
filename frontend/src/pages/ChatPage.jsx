@@ -15,6 +15,110 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css'; 
 
+function ChatInputBox({ 
+  onSendMessage, 
+  onFileUpload, 
+  isLoading, 
+  isUploading, 
+  setIsDrawerOpen,
+  provider,
+  setProvider,
+  model,
+  setModel,
+  setIsLoading
+}) {
+  const [localMessage, setLocalMessage] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  const handleVoiceClick = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    } else {
+      audioChunksRef.current = [];
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) audioChunksRef.current.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+          setIsLoading(true);
+          try {
+            const data = await transcribeAudio(audioBlob);
+            if (data.text) {
+              setLocalMessage((prev) => prev ? `${prev} ${data.text}` : data.text);
+            }
+          } catch (error) {
+            toast.error("Audio transcription failed.");
+          } finally {
+            setIsLoading(false);
+          }
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        toast.error("Could not access microphone."); 
+      }
+    }
+  };
+
+  const handleFileChange = (e) => {
+    onFileUpload(e.target.files[0]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (!localMessage.trim() || isLoading || isUploading || isRecording) return;
+    onSendMessage(localMessage);
+    setLocalMessage('');
+  };
+
+  return (
+    <form onSubmit={onSubmit} className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-2xl flex items-center p-1.5 shadow-2xl w-full shrink-0 transition-all focus-within:border-indigo-500/50 focus-within:shadow-[0_0_30px_rgba(99,102,241,0.1)] gap-1">
+      
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.docx,.doc,.pptx,.png,.jpg,.jpeg" />
+
+      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading || isLoading} className={`p-2 sm:p-2.5 rounded-xl transition-colors shrink-0 ${isUploading ? 'text-indigo-400 animate-pulse' : 'text-zinc-400 hover:text-indigo-400 hover:bg-zinc-800'}`} title="Upload Document">
+        <Paperclip className="w-5 h-5" />
+      </button>
+
+      <button type="button" onClick={() => setIsDrawerOpen(true)} className="p-2 sm:p-2.5 rounded-xl transition-colors shrink-0 text-zinc-400 hover:text-indigo-400 hover:bg-zinc-800" title="View Document Vault">
+        <FolderOpen className="w-5 h-5" />
+      </button>
+
+      <button type="button" onClick={handleVoiceClick} disabled={isUploading} className={`p-2 sm:p-2.5 rounded-xl transition-colors shrink-0 ${isRecording ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse' : 'text-zinc-400 hover:text-indigo-400 hover:bg-zinc-800'}`} title="Voice Input">
+        {isRecording ? <Square className="w-5 h-5 fill-red-400" /> : <Mic className="w-5 h-5" />}
+      </button>
+
+      <input 
+        type="text" value={localMessage} onChange={(e) => setLocalMessage(e.target.value)}
+        placeholder={isRecording ? "Listening..." : "Message Study Space..."}
+        className="flex-1 min-w-0 bg-transparent border-none px-2 py-3 sm:px-3 text-sm text-zinc-100 focus:outline-none focus:ring-0 placeholder-zinc-600 font-medium"
+        disabled={isLoading || isUploading || isRecording}
+      />
+
+      <div className="hidden md:block border-l border-zinc-800/80 pl-2 pr-1 scale-90 origin-right shrink-0">
+         <ModelSelector selectedProvider={provider} setSelectedProvider={setProvider} selectedModel={model} setSelectedModel={setModel} />
+      </div>
+
+      <button type="submit" disabled={!localMessage.trim() || isLoading || isUploading || isRecording} className={`p-2.5 sm:p-3 rounded-xl transition-all shrink-0 ml-1 ${localMessage.trim() && !isLoading && !isUploading ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-900/20 active:scale-95' : 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed'}`}>
+        <Send className="w-5 h-5" />
+      </button>
+    </form>
+  );
+}
+
 export default function ChatPage() {
   
   const {
@@ -88,12 +192,10 @@ export default function ChatPage() {
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (file) => {
     if (!file) return;
     if (!file.name.includes('.')) {
         toast.error("Folders are not allowed. Please select a specific file.");
-        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
     }
 
@@ -115,13 +217,11 @@ export default function ChatPage() {
       updateLastAssistantMessage(`❌ Error uploading ${file.name}.`);
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+  const handleSendMessage = async (userMessage) => {
+    if (!userMessage.trim() || isLoading) return;
 
     let resolvedUserId = "guest";
     if (userId) {
@@ -130,8 +230,6 @@ export default function ChatPage() {
       else resolvedUserId = String(userId);
     }
 
-    const userMessage = inputMessage.trim();
-    setInputMessage(''); 
     const now = new Date().toISOString();
     
     addChatMessage({ role: "user", content: userMessage, provider, model, timestamp: now });
@@ -187,11 +285,19 @@ export default function ChatPage() {
       {activeSources.length > 0 && !isExamMode && (
         <button 
           onClick={() => setIsExamMode(true)}
-          className="absolute top-4 right-4 z-10 flex items-center gap-2 px-4 py-2.5 bg-indigo-600/90 hover:bg-indigo-600 border border-indigo-500/20 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-900/30 active:scale-95 animate-in fade-in"
+          className="absolute top-16 md:top-4 right-4 z-10 flex items-center gap-2 px-4 py-2.5 bg-indigo-600/90 hover:bg-indigo-600 border border-indigo-500/20 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-900/30 active:scale-95 animate-in fade-in"
         >
           <Brain className="w-3.5 h-3.5" /> Take Exam
         </button>
       )}
+
+      {/* Mobile Top Bar for AI Engine */}
+      <div className="md:hidden flex justify-between items-center px-4 pb-2 mb-2 border-b border-zinc-800/50 z-20 shrink-0">
+         <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">AI Engine</span>
+         <div className="w-[180px]">
+            <ModelSelector selectedProvider={provider} setSelectedProvider={setProvider} selectedModel={model} setSelectedModel={setModel} direction="down" />
+         </div>
+      </div>
 
       {/* Premium Borderless Chat Area */}
       <div className="flex-1 overflow-y-auto space-y-6 px-2 md:px-4 mb-4 custom-scrollbar min-w-0">
@@ -289,41 +395,19 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* The "Command Center" Input Box - NOW INLINE */}
-      <form onSubmit={handleSendMessage} className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-2xl flex items-center p-1.5 shadow-2xl w-full shrink-0 transition-all focus-within:border-indigo-500/50 focus-within:shadow-[0_0_30px_rgba(99,102,241,0.1)] gap-1">
-        
-        <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx,.doc,.pptx,.png,.jpg,.jpeg" />
-
-        <button type="button" onClick={() => fileInputRef.current.click()} disabled={isUploading || isLoading} className={`p-2.5 rounded-xl transition-colors shrink-0 ${isUploading ? 'text-indigo-400 animate-pulse' : 'text-zinc-400 hover:text-indigo-400 hover:bg-zinc-800'}`} title="Upload PDF, DOCX, PPTX, or Image">
-          <Paperclip className="w-5 h-5" />
-        </button>
-
-        <button type="button" onClick={() => setIsDrawerOpen(true)} className="p-2.5 rounded-xl transition-colors shrink-0 text-zinc-400 hover:text-indigo-400 hover:bg-zinc-800" title="View uploaded documents" aria-label="Open document drawer">
-          <FolderOpen className="w-5 h-5" />
-        </button>
-
-        <button type="button" onClick={handleVoiceClick} disabled={isUploading} className={`p-2.5 rounded-xl transition-colors shrink-0 ${isRecording ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse' : 'text-zinc-400 hover:text-indigo-400 hover:bg-zinc-800'}`} title="Voice Input">
-          {isRecording ? <Square className="w-5 h-5 fill-red-400" /> : <Mic className="w-5 h-5" />}
-        </button>
-
-        {/* Text Input */}
-        <input 
-          type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
-          placeholder={isRecording ? "Listening..." : "Message Study Space..."}
-          className="flex-1 min-w-0 bg-transparent border-none px-3 py-3 text-sm text-zinc-100 focus:outline-none focus:ring-0 placeholder-zinc-600 font-medium"
-          disabled={isLoading || isUploading || isRecording}
-        />
-
-        {/* INLINE Model Selector */}
-        <div className="block border-l border-zinc-800/80 pl-2 pr-1 scale-90 origin-right shrink-0">
-           <ModelSelector selectedProvider={provider} setSelectedProvider={setProvider} selectedModel={model} setSelectedModel={setModel} />
-        </div>
-
-        {/* Send Button */}
-        <button type="submit" disabled={!inputMessage.trim() || isLoading || isUploading || isRecording} className={`p-3 rounded-xl transition-all shrink-0 ml-1 ${inputMessage.trim() && !isLoading && !isUploading ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-900/20 active:scale-95' : 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed'}`}>
-          <Send className="w-5 h-5" />
-        </button>
-      </form>
+      {/* The "Command Center" Input Box - NOW EXTRACTED */}
+      <ChatInputBox 
+        onSendMessage={handleSendMessage}
+        onFileUpload={handleFileUpload}
+        isLoading={isLoading}
+        isUploading={isUploading}
+        setIsDrawerOpen={setIsDrawerOpen}
+        provider={provider}
+        setProvider={setProvider}
+        model={model}
+        setModel={setModel}
+        setIsLoading={setIsLoading}
+      />
 
       {/* Document Preview Side-Drawer */}
       <DocumentDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />

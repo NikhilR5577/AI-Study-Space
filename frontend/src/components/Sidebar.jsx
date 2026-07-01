@@ -121,7 +121,10 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
             </button>
           ))
         ) : (
-          <p className={`text-xs text-zinc-700 px-4 italic ${isCollapsed ? 'md:hidden block' : 'block'}`}>No recent history</p>
+          <div className={`flex flex-col items-center justify-center h-32 opacity-50 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
+             <Clock className="w-5 h-5 mb-2 text-zinc-500" />
+             <p className="text-xs text-zinc-500">No recent history</p>
+          </div>
         )}
       </div>
       
