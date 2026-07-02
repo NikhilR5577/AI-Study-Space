@@ -13,8 +13,8 @@ export const uploadFile = async (file) => {
 };
 
 export const processFile = async (filename) => {
-  // 👈 FIXED: Using api instance
-  const response = await api.post(`/process/file/${filename}`);
+  // dY`^ FIXED: Using api instance and URL encoding the filename for safe path parameters
+  const response = await api.post(`/process/file/${encodeURIComponent(filename)}`);
   
   return response.data;
 };
