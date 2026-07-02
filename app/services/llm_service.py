@@ -116,9 +116,8 @@ def build_rag_chain(provider: str, model_name: str):
     system_prompt = (
         "You are an expert AI study companion. Your primary directive is to maintain absolute trust with the user.\n"
         "First, analyze the provided Context to answer the user's question.\n"
-        "If the Context contains the answer, answer the question directly and confidently using ONLY that information. "
-        "(Note: Since long documents are chunked, structural labels like 'Chapter X' or 'Page Y' might be missing from the exact text block. If the Context contains the core conceptual answer, assume it is the correct section even if the chapter number is missing.)\n"
-        "If the Context DOES NOT contain the answer, you MUST begin your response with exactly this phrase: "
+        "If the Context contains the necessary concepts to answer the question (even if you need to synthesize them or if specific structural labels like 'Chapter X' are missing), answer the question directly and confidently without any warnings.\n"
+        "ONLY if the core concepts needed to answer the question are completely missing from the Context, you MUST begin your response with exactly this phrase: "
         "'I couldn't find this in your uploaded study materials, but based on my general knowledge: ' "
         "and then proceed to answer the question accurately.\n\n"
         "Context:\n{context}"
