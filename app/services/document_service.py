@@ -57,8 +57,8 @@ def load_and_split_document(file_path: str = None, url: str = None):
     pages = loader.load()
     
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=2000,
+        chunk_overlap=300,
         length_function=len
     )
     chunks = text_splitter.split_documents(pages)

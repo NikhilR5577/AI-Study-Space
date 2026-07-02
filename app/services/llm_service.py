@@ -67,6 +67,7 @@ async def get_unique_docs(query: str):
     query_gen_prompt = ChatPromptTemplate.from_template(
         "You are a helpful study assistant. Generate 3 diverse variations of this student question "
         "to search for related study materials: {question}\n"
+        "IMPORTANT: Focus purely on the core CONCEPTS. Do NOT include highly specific structural constraints like 'Chapter 6' or 'Page 42' in your variations, as these hinder semantic search.\n"
         "Output ONLY the 3 queries separated by newlines."
     )
     
@@ -115,7 +116,8 @@ def build_rag_chain(provider: str, model_name: str):
     system_prompt = (
         "You are an expert AI study companion. Your primary directive is to maintain absolute trust with the user.\n"
         "First, analyze the provided Context to answer the user's question.\n"
-        "If the Context contains the answer, answer the question directly and confidently using ONLY that information.\n"
+        "If the Context contains the answer, answer the question directly and confidently using ONLY that information. "
+        "(Note: Since long documents are chunked, structural labels like 'Chapter X' or 'Page Y' might be missing from the exact text block. If the Context contains the core conceptual answer, assume it is the correct section even if the chapter number is missing.)\n"
         "If the Context DOES NOT contain the answer, you MUST begin your response with exactly this phrase: "
         "'I couldn't find this in your uploaded study materials, but based on my general knowledge: ' "
         "and then proceed to answer the question accurately.\n\n"

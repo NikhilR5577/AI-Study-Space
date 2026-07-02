@@ -3,7 +3,7 @@
 > Your intelligent second brain for hyper-focused learning and knowledge synthesis.
 
 [![Demo Video](https://img.shields.io/badge/Watch-Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](#) <!-- Add your video link here -->
-[![Live Preview](https://img.shields.io/badge/Live-Preview-000000?style=for-the-badge&logo=vercel&logoColor=white)](#) <!-- Add your Vercel link here -->
+[![Live Preview](https://img.shields.io/badge/Live-Preview-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ai-study-space.vercel.app/)
 
 ![App Demo](./demo.gif) <!-- Add your GIF here in the root folder named demo.gif -->
 
