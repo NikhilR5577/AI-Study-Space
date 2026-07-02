@@ -65,6 +65,61 @@ export function StudyProvider({ children, userEmail }) {
   const [studyGoals, setStudyGoals] = useState(() => loadFromStorage("studyGoals", []));
 
   // ===========================
+  // SESSION TIME TRACKING
+  // ===========================
+  const sessionStartTimeRef = useRef(Date.now());
+  const currentTopicRef = useRef("");
+
+  // Keep the ref in sync with the currentTopic state
+  useEffect(() => {
+    currentTopicRef.current = currentTopic;
+  }, [currentTopic]);
+
+  // Flush elapsed session time into studyHistory before switching away
+  const flushSessionTime = useCallback(() => {
+    const topic = currentTopicRef.current;
+    const startTime = sessionStartTimeRef.current;
+    if (!topic || !startTime) return;
+
+    const elapsedMs = Date.now() - startTime;
+    const elapsedMinutes = Math.round(elapsedMs / 60000);
+
+    // Only log if at least 1 minute was spent
+    if (elapsedMinutes >= 1) {
+      setStudyHistory((prev) => {
+        // If the most recent entry is the same topic, accumulate time into it
+        if (prev.length > 0 && prev[0].topic === topic && (Date.now() - prev[0].timestamp < 300000)) {
+          const updated = [...prev];
+          updated[0] = { ...updated[0], duration: (updated[0].duration || 0) + elapsedMinutes };
+          return updated;
+        }
+        return [
+          {
+            id: crypto.randomUUID(),
+            topic,
+            docs: "Session Time",
+            model: "",
+            provider: "",
+            duration: elapsedMinutes,
+            date: new Date().toLocaleString(),
+            timestamp: Date.now()
+          },
+          ...prev
+        ];
+      });
+    }
+    // Reset the timer for the next session
+    sessionStartTimeRef.current = Date.now();
+  }, []);
+
+  // Flush time when user closes/refreshes the browser tab
+  useEffect(() => {
+    const handleBeforeUnload = () => flushSessionTime();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [flushSessionTime]);
+
+  // ===========================
   // TWO-TIER MONGODB HYDRATION
   // ===========================
   const fetchUserData = useCallback(async (rawEmail) => {
@@ -130,6 +185,7 @@ export function StudyProvider({ children, userEmail }) {
   // MODIFIED SESSION LOADING
   // ===========================
   const loadSession = async (targetSessionId) => {
+    flushSessionTime(); // Save time from the session we're leaving
     setIsSessionLoading(true); // LOCK SAVES
     try {
       const cleanEmail = getCleanUserId(userId);
@@ -160,11 +216,13 @@ export function StudyProvider({ children, userEmail }) {
   // CHAT & GRAPH FUNCTIONS
   // ===========================
   const startNewChat = () => {
+    flushSessionTime(); // Save time from the session we're leaving
     setSessionId(crypto.randomUUID());
     setChatHistory([]);
     setCurrentTopic("");
     setActiveSources([]);
     setGraphData({ nodes: [], links: [] });
+    sessionStartTimeRef.current = Date.now(); // Reset timer for new session
   };
 
   const addChatMessage = (messageObj) => {
@@ -236,6 +294,7 @@ export function StudyProvider({ children, userEmail }) {
           docs: sessionData.sources?.join(", ") || "General Knowledge",
           model: sessionData.model,
           provider: sessionData.provider,
+          duration: sessionData.duration || 0,
           date: new Date().toLocaleString(),
           timestamp: Date.now()
         },

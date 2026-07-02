@@ -253,6 +253,19 @@ export default function ExaminerPanel({ sessionId, userId, provider, model, onCl
                     </button>
                   );
                 })}
+                
+                {/* Explicit I Don't Know Button */}
+                {!submitted && (
+                  <button
+                    onClick={() => handleSelectOption(currentQuestion.id, "I Don't Know")}
+                    className={`flex items-center justify-center gap-2 p-3 mt-2 rounded-xl border text-sm font-bold transition-all border-dashed
+                      ${selectedAnswers[currentQuestion.id] === "I Don't Know" 
+                        ? 'border-amber-500/50 bg-amber-500/10 text-amber-400' 
+                        : 'border-zinc-700 hover:border-amber-500/50 hover:bg-amber-500/5 hover:text-amber-400 text-zinc-500'}`}
+                  >
+                    <HelpCircle className="w-4 h-4" /> I Don't Know (Flag for Review)
+                  </button>
+                )}
               </div>
 
               {/* Explanation (only shown after submit) */}

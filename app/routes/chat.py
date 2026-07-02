@@ -43,41 +43,41 @@ async def chat_stream(request: ChatRequest, fastapi_req: Request):
 
             topic = request.query[:50].strip().capitalize()
             
-            # 2. Trigger Background Graph Extraction & DB Save
-            async def process_graph_and_save():
-                try:
-                     extraction_chain = get_graph_extraction_chain(request.provider, request.model)
-                     combined_text = f"User Question: {request.query}\nAnswer: {full_response}"
-                     
-                     graph_result = await asyncio.to_thread(extraction_chain.invoke, {"text": combined_text})
-                     
-                     extracted_nodes = [node.model_dump() for node in graph_result.nodes]
-                     extracted_links = [edge.model_dump() for edge in graph_result.edges]
-                     
-                     if request.user_id != "guest" and db is not None:
-                         new_chat_user = {"role": "user", "content": request.query}
-                         new_chat_assistant = {"role": "assistant", "content": full_response}
-                         doc_meta_list = [{"fileName": s} for s in sources]
-    
-                         await db["sessions"].update_one(
-                             {"sessionId": request.session_id},
-                             {
-                                 "$set": { "userEmail": request.user_id, "topic": topic },
-                                 "$push": {
-                                     "chatTranscript": { "$each": [new_chat_user, new_chat_assistant] },
-                                     "knowledgeGraph.nodes": { "$each": extracted_nodes },
-                                     "knowledgeGraph.edges": { "$each": extracted_links }
-                                 },
-                                 "$addToSet": { "documents": { "$each": doc_meta_list } }
-                             },
-                             upsert=True
-                         )
-                         print(f"✅ Background Success: Session {request.session_id} updated.")
-                except Exception as e:
-                     print(f"⚠️ Background Graph/DB Save Failed: {e}")
+            # 2. Extract Graph & Save DB (Synchronous so frontend gets the graph immediately)
+            extracted_nodes = []
+            extracted_links = []
+            
+            try:
+                 extraction_chain = get_graph_extraction_chain(request.provider, request.model)
+                 combined_text = f"User Question: {request.query}\nAnswer: {full_response}"
+                 
+                 # Run in to_thread so it doesn't block the event loop, but wait for it
+                 graph_result = await asyncio.to_thread(extraction_chain.invoke, {"text": combined_text})
+                 
+                 extracted_nodes = [node.model_dump() for node in graph_result.nodes]
+                 extracted_links = [edge.model_dump() for edge in graph_result.edges]
+                 
+                 if request.user_id != "guest" and db is not None:
+                     new_chat_user = {"role": "user", "content": request.query}
+                     new_chat_assistant = {"role": "assistant", "content": full_response}
+                     doc_meta_list = [{"fileName": s} for s in sources]
 
-            # Fire and forget the background task
-            asyncio.create_task(process_graph_and_save())
+                     await db["sessions"].update_one(
+                         {"sessionId": request.session_id},
+                         {
+                             "$set": { "userEmail": request.user_id, "topic": topic },
+                             "$push": {
+                                 "chatTranscript": { "$each": [new_chat_user, new_chat_assistant] },
+                                 "knowledgeGraph.nodes": { "$each": extracted_nodes },
+                                 "knowledgeGraph.edges": { "$each": extracted_links }
+                             },
+                             "$addToSet": { "documents": { "$each": doc_meta_list } }
+                         },
+                         upsert=True
+                     )
+                     print(f"✅ Success: Session {request.session_id} updated with graph.")
+            except Exception as e:
+                 print(f"⚠️ Graph/DB Save Failed: {e}")
 
             # 3. Yield the metadata immediately to unblock the frontend UI
             metadata = {
@@ -86,8 +86,8 @@ async def chat_stream(request: ChatRequest, fastapi_req: Request):
                 "sources": list(sources),
                 "model": request.model,
                 "provider": request.provider,
-                "nodes": [], # Sent empty so UI stops 'synthesizing' instantly
-                "links": []  
+                "nodes": extracted_nodes, 
+                "links": extracted_links  
             }
             yield json.dumps(metadata) + "\n"
 
