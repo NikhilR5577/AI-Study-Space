@@ -1,13 +1,15 @@
 import os
 import asyncio
 # 👈 UPGRADED: Using Google's free, fast embedding API instead of HuggingFace's slow endpoint
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# 👈 UPGRADED: Google's text-embedding-004 is free, blazing fast, and uses 0 extra RAM
-# Produces 768-dimensional vectors (Pinecone index must be configured for 768 dims + cosine metric)
-embedding_model = GoogleGenerativeAIEmbeddings(
-    model="models/text-embedding-004"
+# 👈 UPGRADED: Using HuggingFaceEndpointEmbeddings with all-mpnet-base-v2 
+# This model is fast, serverless, and produces the required 768-dimensional vectors.
+embedding_model = HuggingFaceEndpointEmbeddings(
+    model="sentence-transformers/all-mpnet-base-v2",
+    task="feature-extraction",
+    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
 )
 
 # Get the index name from .env (fallback to "second-brain-index" if not set)
