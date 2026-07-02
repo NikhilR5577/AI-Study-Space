@@ -2,7 +2,7 @@
 
 > Your intelligent second brain for hyper-focused learning and knowledge synthesis.
 
-[![Demo Video](https://img.shields.io/badge/Watch-Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](#) <!-- Add your video link here -->
+[![Demo Video](https://img.shields.io/badge/Watch-Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/zMmx9jZ95mE?si=Gl_hjCB9qBi_nMrW)
 [![Live Preview](https://img.shields.io/badge/Live-Preview-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ai-study-space.vercel.app/)
 
 ![App Demo](./demo.gif) <!-- Add your GIF here in the root folder named demo.gif -->
@@ -46,7 +46,7 @@
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/ai-study-space.git
+git clone https://github.com/NikhilR5577/ai-study-space.git
 cd ai-study-space
 ```
 
@@ -85,7 +85,7 @@ npm run dev
 ---
 
 ## 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](#).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/NikhilR5577/ai-study-space/issues).
 
 ## 📝 License
 This project is [MIT](https://choosealicense.com/licenses/mit/) licensed.
