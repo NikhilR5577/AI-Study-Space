@@ -4,10 +4,10 @@ import asyncio
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# 👈 UPGRADED: Using HuggingFaceEndpointEmbeddings with all-mpnet-base-v2 
-# This model is fast, serverless, and produces the required 768-dimensional vectors.
+# 👈 UPGRADED: Using HuggingFaceEndpointEmbeddings with all-MiniLM-L6-v2 
+# This model is fast, serverless, and produces the required 384-dimensional vectors.
 embedding_model = HuggingFaceEndpointEmbeddings(
-    model="sentence-transformers/all-mpnet-base-v2",
+    model="sentence-transformers/all-MiniLM-L6-v2",
     task="feature-extraction",
     huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
 )

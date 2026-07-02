@@ -11,7 +11,7 @@ from app.core.config import UPLOAD_DIR
 import pytesseract
 from PIL import Image
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Removed hardcoded Windows Tesseract path to allow it to work on Linux (Render) via system PATH
 
 class SimpleImageLoader:
     """A lightweight custom loader that extracts text from images using OCR."""
