@@ -36,8 +36,8 @@ export default function Sidebar({ isOpen, setIsOpen, user, handleLogout, handleL
 
   const navItems = [
     { path: '/chat', label: 'Chat', icon: MessageSquare },
-    { path: '/focus', label: 'Focus Timer', icon: Clock },
     { path: '/graph', label: 'Knowledge Graph', icon: Circle },
+    { path: '/focus', label: 'Focus Timer', icon: Clock },
     { path: '/analytics', label: 'Analytics', icon: Calendar },
   ];
 
