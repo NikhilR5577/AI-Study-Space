@@ -68,6 +68,7 @@ async def get_unique_docs(query: str):
         "You are a helpful study assistant. Generate 3 diverse variations of this student question "
         "to search for related study materials: {question}\n"
         "IMPORTANT: Focus purely on the core CONCEPTS. Do NOT include highly specific structural constraints like 'Chapter 6' or 'Page 42' in your variations, as these hinder semantic search.\n"
+        "If the user is asking about a specific type of document (like a 'resume', 'CV', or 'syllabus'), generate variations that contain typical words found INSIDE those documents (e.g., 'Experience, Education, Skills, Projects' for a resume) so the semantic search can find them.\n"
         "Output ONLY the 3 queries separated by newlines."
     )
     
