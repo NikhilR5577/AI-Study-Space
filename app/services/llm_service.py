@@ -169,8 +169,11 @@ def get_graph_extraction_chain(provider: str, model_name: str):
     """
     Creates a chain that forces the LLM to output a strictly typed JSON Knowledge Graph.
     """
-    # We highly recommend Gemini 1.5 Pro/Flash for this, as it excels at structured JSON extraction.
-    llm = get_llm(provider, model_name)
+    # On Groq, gpt-oss-20b lacks tool calling support; gpt-oss-120b and Gemini support it natively
+    if provider.lower() == "groq" and model_name.lower() in ["gpt-20b", "gpt-oss-20b", "qwen", "qwen3", "qwen3.8"]:
+        llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3)
+    else:
+        llm = get_llm(provider, model_name)
     
     # Bind the Pydantic schema to the LLM to enforce strict JSON output
     structured_llm = llm.with_structured_output(GraphData)

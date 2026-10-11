@@ -32,10 +32,15 @@ class GraphSaveRequest(BaseModel):
     nodes: list
     links: list
 
+from langchain_groq import ChatGroq
+
 # 3. The Extraction Endpoint (UNTOUCHED)
 @router.post("/api/graph/extract")
 async def extract_graph_entities(request: ExtractRequest):
-    llm = get_llm(request.provider, request.model)
+    if request.provider.lower() == "groq" and request.model.lower() in ["gpt-20b", "gpt-oss-20b", "qwen", "qwen3", "qwen3.8"]:
+        llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3)
+    else:
+        llm = get_llm(request.provider, request.model)
     
     # Bind the Pydantic schema to force JSON output
     structured_llm = llm.with_structured_output(GraphExtraction)
