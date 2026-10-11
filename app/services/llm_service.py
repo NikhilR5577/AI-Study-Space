@@ -40,13 +40,14 @@ def get_llm(provider: str, model_name: str):
         return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
         
     elif provider_lower == "groq":
-        if model_lower == "llama-3.3":
-            return ChatGroq(model="llama-3.3-70b-versatile", temperature=0.3)
-        elif model_lower == "gpt-oss":
+        if model_lower in ["gpt-20b", "gpt-oss-20b"]:
+            return ChatGroq(model="openai/gpt-oss-20b", temperature=0.3)
+        elif model_lower in ["gpt-oss", "gpt-oss-120b"]:
             return ChatGroq(model="openai/gpt-oss-120b", temperature=0.3)
-        elif model_lower == "qwen3":
-            return ChatGroq(model="qwen/qwen3-32b", temperature=0.3)
-        return ChatGroq(model="llama-3.3-70b-versatile", temperature=0.3)
+        elif model_lower in ["qwen3", "qwen", "qwen3.8"]:
+            return ChatGroq(model="qwen/qwen3.8-27b", temperature=0.3)
+        # Safe fallback for legacy "llama-3.3" or any other legacy model ID
+        return ChatGroq(model="openai/gpt-oss-20b", temperature=0.3)
         
     elif provider_lower == "mistral":
         return ChatMistralAI(model="mistral-small-2506", temperature=0.3)
@@ -62,7 +63,7 @@ async def get_unique_docs(query: str):
     """
     vectorstore = get_vectorstore()
     # USE GROQ'S FASTEST MODEL FOR LIGHTNING QUICK QUERY EXPANSION
-    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.3)
+    llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.3)
     
     query_gen_prompt = ChatPromptTemplate.from_template(
         "You are a helpful study assistant. Generate 3 diverse variations of this student question "

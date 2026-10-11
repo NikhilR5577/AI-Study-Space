@@ -25,7 +25,7 @@ export function StudyProvider({ children, userEmail }) {
   // SETTINGS & IDENTITY
   // ===========================
   const [provider, setProvider] = useState("groq");
-  const [model, setModel] = useState("llama-3.3");
+  const [model, setModel] = useState("gpt-20b");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [userId, setUserId] = useState(() => loadFromStorage("user_email", null));
   const [isDataLoaded, setIsDataLoaded] = useState(false); 

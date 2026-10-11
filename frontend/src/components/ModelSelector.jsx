@@ -15,9 +15,9 @@ const AVAILABLE_PROVIDERS = [
     id: 'groq',
     name: 'Groq Cloud',
     models: [
-      { id: 'llama-3.3', name: 'Llama 3.3 70B' },
-      { id: 'gpt-oss', name: 'GPT OSS 120B' },
-      { id: 'qwen3', name: 'Qwen 3 32B' }
+      { id: 'gpt-20b', name: 'GPT OSS 20B (Fast)' },
+      { id: 'gpt-oss', name: 'GPT OSS 120B (Deep)' },
+      { id: 'qwen3', name: 'Qwen 3.8 27B' }
     ]
   },
   {

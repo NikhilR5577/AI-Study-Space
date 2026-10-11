@@ -1,15 +1,12 @@
 import os
 import asyncio
-# 👈 UPGRADED: Using Google's free, fast embedding API instead of HuggingFace's slow endpoint
-from langchain_huggingface import HuggingFaceEndpointEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# 👈 UPGRADED: Using HuggingFaceEndpointEmbeddings with all-MiniLM-L6-v2 
-# This model is fast, serverless, and produces the required 384-dimensional vectors.
-embedding_model = HuggingFaceEndpointEmbeddings(
-    model="sentence-transformers/all-MiniLM-L6-v2",
-    task="feature-extraction",
-    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
+# Using local HuggingFaceEmbeddings with all-MiniLM-L6-v2 (384 dimensions)
+# Runs locally without remote API endpoint payment/rate-limit blocks
+embedding_model = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
 # Get the index name from .env (fallback to "second-brain-index" if not set)
