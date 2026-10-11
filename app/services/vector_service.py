@@ -1,11 +1,11 @@
 import os
 import asyncio
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# Using local HuggingFaceEmbeddings with all-MiniLM-L6-v2 (384 dimensions)
-# Runs locally without remote API endpoint payment/rate-limit blocks
-embedding_model = HuggingFaceEmbeddings(
+# Ultra-lightweight ONNX embeddings (all-MiniLM-L6-v2, 384 dimensions)
+# Uses ONNX Runtime (C++) to stay safely below Render's 512MB RAM limit without OOM crashes!
+embedding_model = FastEmbedEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
